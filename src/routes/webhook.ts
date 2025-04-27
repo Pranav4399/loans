@@ -16,12 +16,25 @@ const handleWebhook: RequestHandler = async (req, res) => {
   try {
     // Validate request is from Twilio
     const signature = req.header('X-Twilio-Signature') || '';
-    const url = `${req.protocol}://${req.get('host')}${req.originalUrl}`;
+    
+    // Use the full URL from Render
+    const url = `${process.env.WEBHOOK_URL}/api/webhook`;
     
     const body = req.body as TwilioWebhookBody;
     
+    logger.info('Validating webhook:', { 
+      signature, 
+      url,
+      body: JSON.stringify(body)
+    });
+    
     if (!validateWebhook(signature, url, body)) {
-      logger.error('Invalid webhook signature', { signature, url });
+      logger.error('Invalid webhook signature', { 
+        signature, 
+        url,
+        authToken: process.env.TWILIO_AUTH_TOKEN?.substring(0, 5) + '...',
+        body: JSON.stringify(body)
+      });
       res.status(403).send('Invalid signature');
       return;
     }
@@ -29,6 +42,8 @@ const handleWebhook: RequestHandler = async (req, res) => {
     // Extract message details
     const messageBody = body.Body;
     const from = body.From.replace('whatsapp:', '');
+
+    logger.info('Processing message:', { from, messageBody });
 
     // Process the message
     await processMessage(from, messageBody);
