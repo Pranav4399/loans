@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { LoanApplication, ConversationState } from '../types/database';
+import logger from './logger';
 
 if (!process.env.SUPABASE_URL || !process.env.SUPABASE_ANON_KEY) {
   throw new Error('Missing Supabase credentials in environment variables');
@@ -17,40 +18,31 @@ export const TABLES = {
   CONVERSATION_STATES: 'conversation_states',
 } as const;
 
-// Helper functions for loan applications
-export async function createLoanApplication(data: Partial<LoanApplication>) {
-  const { data: result, error } = await supabase
-    .from(TABLES.LOAN_APPLICATIONS)
-    .insert([{ ...data, status: 'pending', last_updated: new Date().toISOString() }])
-    .select()
-    .single();
-
-  if (error) throw error;
-  return result;
-}
-
-export async function updateLoanApplication(id: string, data: Partial<LoanApplication>) {
-  const { data: result, error } = await supabase
-    .from(TABLES.LOAN_APPLICATIONS)
-    .update({ ...data, last_updated: new Date().toISOString() })
-    .eq('id', id)
-    .select()
-    .single();
-
-  if (error) throw error;
-  return result;
+// Format phone number to match database constraint
+function formatPhoneNumber(phoneNumber: string): string {
+  // Remove 'whatsapp:' prefix and any spaces
+  return phoneNumber.replace('whatsapp:', '').replace(/\s/g, '');
 }
 
 // Helper functions for conversation states
 export async function getConversationState(phone_number: string) {
+  const formattedPhone = formatPhoneNumber(phone_number);
+  logger.info('Getting conversation state:', { 
+    original: phone_number,
+    formatted: formattedPhone 
+  });
+
   const { data, error } = await supabase
     .from(TABLES.CONVERSATION_STATES)
     .select()
-    .eq('phone_number', phone_number)
+    .eq('phone_number', formattedPhone)
     .eq('is_complete', false)
     .single();
 
-  if (error && error.code !== 'PGRST116') throw error; // PGRST116 is "no rows returned"
+  if (error && error.code !== 'PGRST116') {
+    logger.error('Error getting conversation state:', { error });
+    throw error;
+  }
   return data;
 }
 
@@ -58,10 +50,17 @@ export async function updateConversationState(
   phone_number: string,
   data: Partial<ConversationState>
 ) {
+  const formattedPhone = formatPhoneNumber(phone_number);
+  logger.info('Updating conversation state:', { 
+    original: phone_number,
+    formatted: formattedPhone,
+    data: JSON.stringify(data)
+  });
+
   const { data: existing } = await supabase
     .from(TABLES.CONVERSATION_STATES)
     .select()
-    .eq('phone_number', phone_number)
+    .eq('phone_number', formattedPhone)
     .eq('is_complete', false)
     .single();
 
@@ -69,7 +68,7 @@ export async function updateConversationState(
     const { data: result, error } = await supabase
       .from(TABLES.CONVERSATION_STATES)
       .insert([{
-        phone_number,
+        phone_number: formattedPhone,
         ...data,
         created_at: new Date().toISOString(),
         last_updated: new Date().toISOString(),
@@ -78,7 +77,14 @@ export async function updateConversationState(
       .select()
       .single();
 
-    if (error) throw error;
+    if (error) {
+      logger.error('Error creating conversation state:', { 
+        error,
+        formattedPhone,
+        data: JSON.stringify(data)
+      });
+      throw error;
+    }
     return result;
   }
 
@@ -92,8 +98,46 @@ export async function updateConversationState(
     .select()
     .single();
 
-  if (error) throw error;
+  if (error) {
+    logger.error('Error updating conversation state:', { 
+      error,
+      formattedPhone,
+      data: JSON.stringify(data)
+    });
+    throw error;
+  }
   return result;
+}
+
+// Helper functions for loan applications
+export async function createLoanApplication(application: Partial<LoanApplication>) {
+  const formattedPhone = formatPhoneNumber(application.phone_number || '');
+  logger.info('Creating loan application:', { 
+    original: application.phone_number,
+    formatted: formattedPhone
+  });
+
+  const { data, error } = await supabase
+    .from(TABLES.LOAN_APPLICATIONS)
+    .insert([{
+      ...application,
+      phone_number: formattedPhone,
+      created_at: new Date().toISOString(),
+      last_updated: new Date().toISOString(),
+      status: 'pending'
+    }])
+    .select()
+    .single();
+
+  if (error) {
+    logger.error('Error creating loan application:', { 
+      error,
+      formattedPhone,
+      application: JSON.stringify(application)
+    });
+    throw error;
+  }
+  return data;
 }
 
 // Get loan application status
@@ -131,5 +175,8 @@ export async function cleanupIncompleteConversations() {
     .eq('is_complete', false)
     .lt('last_updated', oneDayAgo.toISOString());
 
-  if (error) throw error;
+  if (error) {
+    logger.error('Error cleaning up incomplete conversations:', { error });
+    throw error;
+  }
 } 

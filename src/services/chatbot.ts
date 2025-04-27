@@ -725,19 +725,31 @@ export async function processMessage(phoneNumber: string, message: string): Prom
     const userInput = message.trim();
 
     if (!state) {
-      logger.info('No existing state found, creating new conversation');
-      state = await updateConversationState(phoneNumber, {
-        current_step: 'start' as FormStep,
-        form_data: {},
-        phone_number: phoneNumber,
-        created_at: new Date().toISOString(),
-        last_updated: new Date().toISOString(),
-        is_complete: false
-      });
-      logger.info('Created new conversation state:', { 
-        current_step: state.current_step,
-        phone_number: state.phone_number
-      });
+      logger.info('Creating new conversation state:', { phoneNumber });
+      try {
+        state = await updateConversationState(phoneNumber, {
+          current_step: 'start' as FormStep,
+          form_data: {},
+          phone_number: phoneNumber,
+          created_at: new Date().toISOString(),
+          last_updated: new Date().toISOString(),
+          is_complete: false
+        });
+        logger.info('Successfully created new conversation state:', { 
+          current_step: state.current_step,
+          phone_number: state.phone_number
+        });
+      } catch (dbError) {
+        logger.error('Failed to create conversation state:', { 
+          error: dbError instanceof Error ? {
+            name: dbError.name,
+            message: dbError.message,
+            stack: dbError.stack
+          } : dbError,
+          phoneNumber 
+        });
+        throw dbError;
+      }
     }
 
     // Check for navigation commands first

@@ -14,6 +14,12 @@ interface TwilioWebhookBody {
   [key: string]: string;  // All Twilio webhook fields are strings
 }
 
+// Format phone number to match database constraint
+function formatPhoneNumber(phoneNumber: string): string {
+  // Remove 'whatsapp:' prefix and any spaces
+  return phoneNumber.replace('whatsapp:', '').replace(/\s/g, '');
+}
+
 // Webhook for incoming WhatsApp messages
 const handleWebhook: RequestHandler = async (req, res) => {
   try {
@@ -49,8 +55,8 @@ const handleWebhook: RequestHandler = async (req, res) => {
     console.log(body, "BODY");
     // Extract message details
     const messageBody = body.Body;
-    // WhatsApp numbers come in format 'whatsapp:+1234567890'
-    const from = body.From.replace('whatsapp:', '');
+    // Format phone number to match database constraint
+    const from = formatPhoneNumber(body.From);
 
     if (!messageBody || !from) {
       logger.error('Missing required fields in webhook body', { body });
