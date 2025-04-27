@@ -18,88 +18,87 @@ const stepHandlers: Record<FormStep, StepHandler> = {
     getNextStep: () => 'full_name',
   },
   full_name: {
-    validate: (input: string): boolean | string => input.length >= 2 || 'Name must be at least 2 characters long',
+    validate: (input: string): boolean | string => 
+      validators.fullName(input) || 'Please enter your full name with at least first and last name',
     process: (input: string) => ({ full_name: input.trim() }),
-    getNextStep: () => 'email',
+    getNextStep: () => 'review',
   },
   email: {
-    validate: (input: string): boolean | string => validators.email(input) || 'Please enter a valid email address',
+    validate: (input: string): boolean | string => 
+      validators.email(input) || 'Please enter a valid email address',
     process: (input: string) => ({ email: input.trim().toLowerCase() }),
-    getNextStep: () => 'loan_type',
+    getNextStep: () => 'review',
   },
   loan_type: {
-    validate: (input: string): boolean | string => {
-      const validOptions = { '1': 'Personal', '2': 'Business', '3': 'Education', '4': 'Home' };
-      return input in validOptions || 'Please select a valid option (1-4)';
-    },
+    validate: (input: string): boolean | string => 
+      validators.loanType(input) || 'Please select a valid option (1-4)',
     process: (input: string) => {
       const options = { '1': 'Personal', '2': 'Business', '3': 'Education', '4': 'Home' } as const;
       return { loan_type: options[input as keyof typeof options] };
     },
-    getNextStep: () => 'loan_amount',
+    getNextStep: () => 'review',
   },
   loan_amount: {
-    validate: (input: string): boolean | string => validators.number(input) || 'Please enter a valid amount',
+    validate: (input: string): boolean | string => 
+      validators.loanAmount(input) || 'Please enter a valid amount between ₹10,000 and ₹1,00,00,000',
     process: (input: string) => ({ loan_amount: Number(input) }),
-    getNextStep: () => 'purpose',
+    getNextStep: () => 'review',
   },
   purpose: {
-    validate: (input: string): boolean | string => input.length >= 10 || 'Please provide more details (min 10 characters)',
+    validate: (input: string): boolean | string => 
+      validators.purpose(input) || 'Please provide a clear purpose between 10 and 100 characters',
     process: (input: string) => ({ purpose: input.trim() }),
-    getNextStep: () => 'monthly_income',
+    getNextStep: () => 'review',
   },
   monthly_income: {
-    validate: (input: string): boolean | string => validators.number(input) || 'Please enter a valid amount',
+    validate: (input: string): boolean | string => 
+      validators.monthlyIncome(input) || 'Please enter a valid monthly income between ₹10,000 and ₹10,00,000',
     process: (input: string) => ({ monthly_income: Number(input) }),
-    getNextStep: () => 'employment_status',
+    getNextStep: () => 'review',
   },
   employment_status: {
-    validate: (input: string): boolean | string => {
-      if (input.toLowerCase() === 'skip') return true;
-      const validOptions = { '1': true, '2': true, '3': true };
-      return input in validOptions || 'Please select a valid option (1-3) or type SKIP';
-    },
+    validate: (input: string): boolean | string => 
+      validators.employmentStatus(input) || 'Please select a valid employment status (1-3)',
     process: (input: string) => {
-      if (input.toLowerCase() === 'skip') return {};
       const options = { '1': 'Salaried', '2': 'Self-employed', '3': 'Business Owner' } as const;
       return { employment_status: options[input as keyof typeof options] };
     },
-    getNextStep: (data: Partial<LoanApplication>) => data.employment_status ? 'current_employer' : 'existing_loans',
+    getNextStep: () => 'review',
   },
   current_employer: {
-    validate: (input: string): boolean => input.toLowerCase() === 'skip' || input.length >= 2,
-    process: (input: string) => input.toLowerCase() === 'skip' ? {} : { current_employer: input.trim() },
-    getNextStep: () => 'years_employed',
+    validate: (input: string): boolean | string => 
+      validators.currentEmployer(input) || 'Please enter a valid employer name (2-50 characters)',
+    process: (input: string) => ({ current_employer: input.trim() }),
+    getNextStep: () => 'review',
   },
   years_employed: {
-    validate: (input: string): boolean => input.toLowerCase() === 'skip' || validators.number(input),
-    process: (input: string) => input.toLowerCase() === 'skip' ? {} : { years_employed: Number(input) },
-    getNextStep: () => 'existing_loans',
+    validate: (input: string): boolean | string => 
+      validators.yearsEmployed(input) || 'Please enter a valid number of years (1-50)',
+    process: (input: string) => ({ years_employed: Number(input) }),
+    getNextStep: () => 'review',
   },
   existing_loans: {
-    validate: (input: string): boolean => {
-      const normalized = input.toLowerCase();
-      return normalized === 'skip' || normalized === 'yes' || normalized === 'no';
-    },
-    process: (input: string) => {
-      const normalized = input.toLowerCase();
-      return normalized === 'skip' ? {} : { existing_loans: normalized === 'yes' };
-    },
-    getNextStep: () => 'preferred_tenure',
+    validate: (input: string): boolean | string => 
+      validators.yesNo(input) || 'Please reply with YES or NO',
+    process: (input: string) => ({ existing_loans: input.toLowerCase() === 'yes' }),
+    getNextStep: (data: Partial<LoanApplication>) => data.existing_loans ? 'cibil_consent' : 'preferred_tenure',
+  },
+  cibil_consent: {
+    validate: (input: string): boolean | string => 
+      validators.yesNo(input) || 'Please reply with YES or NO for CIBIL score consent',
+    process: (input: string) => ({ cibil_consent: input.toLowerCase() === 'yes' }),
+    getNextStep: () => 'review',
   },
   preferred_tenure: {
-    validate: (input: string): boolean => input.toLowerCase() === 'skip' || validators.number(input),
-    process: (input: string) => input.toLowerCase() === 'skip' ? {} : { preferred_tenure: Number(input) },
-    getNextStep: () => 'preferred_communication',
+    validate: (input: string): boolean | string => 
+      validators.preferredTenure(input) || 'Please enter a valid tenure between 3 and 360 months',
+    process: (input: string) => ({ preferred_tenure: Number(input) }),
+    getNextStep: () => 'review',
   },
   preferred_communication: {
-    validate: (input: string): boolean | string => {
-      if (input.toLowerCase() === 'skip') return true;
-      const validOptions = { '1': true, '2': true, '3': true };
-      return input in validOptions || 'Please select a valid option (1-3) or type SKIP';
-    },
+    validate: (input: string): boolean | string => 
+      validators.communicationPreference(input) || 'Please select a valid communication preference (1-3)',
     process: (input: string) => {
-      if (input.toLowerCase() === 'skip') return {};
       const options = { '1': 'WhatsApp', '2': 'Email', '3': 'Both' } as const;
       return { preferred_communication: options[input as keyof typeof options] };
     },
@@ -108,7 +107,7 @@ const stepHandlers: Record<FormStep, StepHandler> = {
   review: {
     validate: (input: string): boolean => {
       const normalized = input.toLowerCase();
-      return normalized === 'yes' || normalized === 'no';
+      return normalized === 'yes' || normalized === 'no' || normalized.startsWith('edit');
     },
     process: () => ({}),
     getNextStep: () => 'confirm',
