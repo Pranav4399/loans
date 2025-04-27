@@ -51,6 +51,7 @@ export async function updateConversationState(
   data: Partial<ConversationState>
 ) {
   const formattedPhone = formatPhoneNumber(phone_number);
+  console.log(formattedPhone, "FORMATTED PHONE");
   logger.info('Updating conversation state:', { 
     original: phone_number,
     formatted: formattedPhone,
@@ -63,6 +64,8 @@ export async function updateConversationState(
     .eq('phone_number', formattedPhone)
     .eq('is_complete', false)
     .single();
+
+  console.log(existing, "EXISTING");
 
   if (!existing) {
     const { data: result, error } = await supabase

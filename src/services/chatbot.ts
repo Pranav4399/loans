@@ -727,6 +727,7 @@ export async function processMessage(phoneNumber: string, message: string): Prom
     if (!state) {
       logger.info('Creating new conversation state:', { phoneNumber });
       try {
+        console.log(phoneNumber, "PHONE NUMBER");
         state = await updateConversationState(phoneNumber, {
           current_step: 'start' as FormStep,
           form_data: {},
