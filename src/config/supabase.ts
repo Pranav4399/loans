@@ -60,7 +60,7 @@ export async function updateConversationState(
 
     // First try to get existing conversation
     const { data: existing, error: fetchError } = await supabase
-      .from(TABLES.CONVERSATION_STATES)
+      .from('conversation_states')
       .select()
       .eq('phone_number', formattedPhone)
       .eq('is_complete', false)
@@ -91,7 +91,7 @@ export async function updateConversationState(
       logger.info('Creating new conversation state:', { newState });
 
       const { data: result, error: insertError } = await supabase
-        .from(TABLES.CONVERSATION_STATES)
+        .from('conversation_states')
         .insert([newState])
         .select()
         .single();
