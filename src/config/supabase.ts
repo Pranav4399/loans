@@ -86,8 +86,6 @@ export async function updateConversationState(
         is_complete: false,
       };
 
-      console.log(newState, "NEW STATE");
-
       logger.info('Creating new conversation state:', { newState });
 
       const { data: result, error: insertError } = await supabase
@@ -97,7 +95,6 @@ export async function updateConversationState(
         .single();
 
       if (insertError) {
-        console.log(insertError, "INSERT ERROR");
         logger.error('Error creating conversation state:', { 
           error: insertError,
           formattedPhone,

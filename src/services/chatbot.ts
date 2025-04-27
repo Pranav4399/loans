@@ -104,7 +104,7 @@ function getProgressMessage(currentStep: FormStep, formData: Partial<LoanApplica
 // Questions for each step
 export type StepMessage = string | ((state: ConversationState) => string);
 export const STEP_MESSAGES: Record<FormStep, StepMessage> = {
-  start: '👋 Welcome to the Loan Application Bot!\n\nI\'ll help you complete your loan application step by step. You can type:\n• BACK - to go to previous step\n• RESTART - to start over\n• HELP - to see instructions\n\nReady to begin? (Reply YES to start)',
+  start: '👋 Welcome to the Loan Application Bot!\n\nI\'ll help you complete your loan application step by step. You can type:\n• BACK - to go to previous step\n• RESTART - to start over\n• EXIT - to cancel current application\n• HELP - to see instructions\n\nReady to begin? (Reply YES to start)',
   
   full_name: (state: ConversationState) => {
     const progress = getProgressMessage('full_name', state.form_data);
@@ -734,7 +734,6 @@ export async function processMessage(phoneNumber: string, message: string): Prom
     if (!state) {
       logger.info('Creating new conversation state:', { phoneNumber });
       try {
-        console.log(phoneNumber, "PHONE NUMBER");
         state = await updateConversationState(phoneNumber, {
           current_step: 'start' as FormStep,
           form_data: {},

@@ -52,7 +52,6 @@ const handleWebhook: RequestHandler = async (req, res) => {
       return;
     }
     
-    console.log(body, "BODY");
     // Extract message details
     const messageBody = body.Body;
     // Format phone number to match database constraint

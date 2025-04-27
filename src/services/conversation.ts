@@ -182,4 +182,131 @@ export async function handleConversationStep(
     logger.error('Error handling conversation step:', { error, phoneNumber, message });
     throw error;
   }
+}
+
+// Get previous step in the form flow
+function getPreviousStep(currentStep: FormStep): FormStep {
+  const steps: FormStep[] = [
+    'start',
+    'full_name',
+    'email',
+    'loan_type',
+    'loan_amount',
+    'purpose',
+    'monthly_income',
+    'employment_status',
+    'current_employer',
+    'years_employed',
+    'existing_loans',
+    'cibil_consent',
+    'preferred_tenure',
+    'preferred_communication',
+    'review',
+    'confirm'
+  ];
+  const currentIndex = steps.indexOf(currentStep);
+  return currentIndex > 0 ? steps[currentIndex - 1] : 'start';
+}
+
+// Help messages for each step
+const HELP_MESSAGES: Record<FormStep, string> = {
+  start: 'Type YES to start your loan application.\n\nYou can type EXIT at any time to cancel the current application.',
+  full_name: 'Please enter your full name as it appears on official documents. Use letters and spaces only.',
+  email: 'Enter a valid email address that you regularly check. We\'ll use this for important updates.',
+  loan_type: 'Enter a number (1-4) to select your loan type:\n1. Personal Loan\n2. Business Loan\n3. Education Loan\n4. Home Loan',
+  loan_amount: 'Enter the loan amount you need in numbers only (between ₹10,000 and ₹1,00,00,000). Don\'t include currency symbols or commas.',
+  purpose: 'Briefly describe why you need this loan. Be specific but concise (10-100 characters).',
+  monthly_income: 'Enter your monthly income in numbers only (between ₹10,000 and ₹10,00,000).',
+  employment_status: 'Enter a number (1-3) to select your employment status:\n1. Salaried\n2. Self-employed\n3. Business Owner',
+  current_employer: 'Enter your employer\'s name (2-50 characters).',
+  years_employed: 'Enter the number of years you\'ve been employed (1-50 years).',
+  existing_loans: 'Type YES if you have other loans, NO if you don\'t.',
+  cibil_consent: 'Type YES to give consent for CIBIL score check, NO to deny consent.',
+  preferred_tenure: 'Enter your preferred loan duration in months (between 3 and 360 months).',
+  preferred_communication: 'Enter a number (1-3) to choose how we contact you:\n1. WhatsApp\n2. Email\n3. Both',
+  review: 'Review your information and:\n• Type YES to submit\n• Type NO to start over\n• Type EDIT followed by the field number to make changes',
+  confirm: 'Your application is complete! Type START for a new application or EXIT to end the conversation.'
+};
+
+// Handle navigation commands
+async function handleNavigationCommand(
+  command: string,
+  state: ConversationState,
+  phoneNumber: string
+): Promise<{ nextMessage: string; handled: boolean }> {
+  const normalizedCommand = command.toLowerCase().trim();
+
+  switch (normalizedCommand) {
+    case 'exit':
+      // Reset the conversation state completely
+      await updateConversationState(phoneNumber, {
+        current_step: 'start',
+        form_data: {},
+        phone_number: phoneNumber,
+        created_at: new Date().toISOString(),
+        last_updated: new Date().toISOString(),
+        is_complete: false
+      });
+
+      return {
+        nextMessage: '🔄 Current application cancelled. You can start a new application by typing YES.',
+        handled: true
+      };
+
+    case 'back':
+      if (state.current_step === 'start') {
+        return {
+          nextMessage: 'You\'re already at the start. Type YES to begin the application.',
+          handled: true
+        };
+      }
+      const previousStep = getPreviousStep(state.current_step as FormStep);
+      await updateConversationState(phoneNumber, {
+        current_step: previousStep,
+        form_data: state.form_data // Preserve existing data
+      });
+
+      // Get the message for the previous step
+      const prevStepMessage = STEP_MESSAGES[previousStep];
+      const prevMessage = typeof prevStepMessage === 'function' 
+        ? prevStepMessage({ ...state, current_step: previousStep })
+        : prevStepMessage;
+
+      return {
+        nextMessage: prevMessage,
+        handled: true
+      };
+
+    case 'restart':
+      const newState: Partial<ConversationState> = {
+        current_step: 'start',
+        form_data: {},
+        is_complete: false
+      };
+      await updateConversationState(phoneNumber, newState);
+
+      // Get the start message
+      const startMessage = STEP_MESSAGES.start;
+      const message = typeof startMessage === 'function'
+        ? startMessage({ ...state, ...newState })
+        : startMessage;
+
+      return {
+        nextMessage: message,
+        handled: true
+      };
+
+    case 'help':
+      const helpMessage = HELP_MESSAGES[state.current_step as FormStep];
+      return {
+        nextMessage: `📌 Available commands:\n• EXIT - Cancel current application and start fresh\n• BACK - Go to previous step\n• RESTART - Start over\n• HELP - Show this message\n\n${helpMessage}`,
+        handled: true
+      };
+
+    default:
+      return {
+        nextMessage: '',
+        handled: false
+      };
+  }
 } 
