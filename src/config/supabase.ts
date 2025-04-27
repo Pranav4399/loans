@@ -97,6 +97,7 @@ export async function updateConversationState(
         .single();
 
       if (insertError) {
+        console.log(insertError, "INSERT ERROR");
         logger.error('Error creating conversation state:', { 
           error: insertError,
           formattedPhone,
