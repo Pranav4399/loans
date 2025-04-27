@@ -5,10 +5,13 @@ import logger from '../config/logger';
 
 const router = Router();
 
+// Define the complete webhook body type
 interface TwilioWebhookBody {
   Body: string;
   From: string;
-  [key: string]: string;
+  WaId: string;  // WhatsApp ID
+  ProfileName: string;
+  [key: string]: string;  // All Twilio webhook fields are strings
 }
 
 // Webhook for incoming WhatsApp messages
@@ -16,16 +19,20 @@ const handleWebhook: RequestHandler = async (req, res) => {
   try {
     // Validate request is from Twilio
     const signature = req.header('X-Twilio-Signature') || '';
-    
-    // Use the full URL from Render
     const url = `${process.env.WEBHOOK_URL}/api/webhook`;
     
-    const body = req.body as TwilioWebhookBody;
+    // Cast the body to our interface, ensuring all fields are strings
+    const body: TwilioWebhookBody = {
+      ...req.body,
+      Body: String(req.body.Body || ''),
+      From: String(req.body.From || ''),
+      WaId: String(req.body.WaId || ''),
+      ProfileName: String(req.body.ProfileName || '')
+    };
     
-    logger.info('Validating webhook:', { 
-      signature, 
-      url,
-      body: JSON.stringify(body)
+    logger.info('Received webhook request:', { 
+      headers: req.headers,
+      body: JSON.stringify(body, null, 2)
     });
     
     if (!validateWebhook(signature, url, body)) {
@@ -38,12 +45,25 @@ const handleWebhook: RequestHandler = async (req, res) => {
       res.status(403).send('Invalid signature');
       return;
     }
-
+    
+    console.log(body, "BODY");
     // Extract message details
     const messageBody = body.Body;
+    // WhatsApp numbers come in format 'whatsapp:+1234567890'
     const from = body.From.replace('whatsapp:', '');
 
-    logger.info('Processing message:', { from, messageBody });
+    if (!messageBody || !from) {
+      logger.error('Missing required fields in webhook body', { body });
+      res.status(400).send('Missing required fields');
+      return;
+    }
+
+    logger.info('Processing message:', { 
+      from,
+      messageBody,
+      waId: body.WaId,
+      profileName: body.ProfileName
+    });
 
     // Process the message
     await processMessage(from, messageBody);
