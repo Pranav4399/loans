@@ -18,6 +18,7 @@ export type FormStep =
   | 'current_employer'
   | 'years_employed'
   | 'existing_loans'
+  | 'cibil_consent'
   | 'preferred_tenure'
   | 'preferred_communication'
   | 'review'
@@ -35,6 +36,7 @@ export const FORM_STEPS: Record<Uppercase<FormStep>, FormStep> = {
   CURRENT_EMPLOYER: 'current_employer',
   YEARS_EMPLOYED: 'years_employed',
   EXISTING_LOANS: 'existing_loans',
+  CIBIL_CONSENT: 'cibil_consent',
   PREFERRED_TENURE: 'preferred_tenure',
   PREFERRED_COMMUNICATION: 'preferred_communication',
   REVIEW: 'review',
@@ -151,12 +153,17 @@ export const STEP_MESSAGES: Record<FormStep, StepMessage> = {
   
   existing_loans: (state: ConversationState) => {
     const progress = getProgressMessage('existing_loans', state.form_data);
-    return progress + '📊 Do you have any existing loans?\n\nReply with:\n• YES - if you have existing loans\n• NO - if you don\'t have any loans\n• SKIP - if you prefer not to answer';
+    return progress + '📊 Do you have any existing loans?\n\nReply with:\n• YES - if you have existing loans\n• NO - if you don\'t have any loans';
+  },
+  
+  cibil_consent: (state: ConversationState) => {
+    const progress = getProgressMessage('cibil_consent', state.form_data);
+    return progress + '📋 Since you have existing loans, we would like to check your CIBIL score to better assess your application.\n\nDo you consent to us pulling your CIBIL score?\n\nReply with:\n• YES - I consent\n• NO - I do not consent';
   },
   
   preferred_tenure: (state: ConversationState) => {
     const progress = getProgressMessage('preferred_tenure', state.form_data);
-    return progress + '📅 What is your preferred loan tenure?\n\nEnter the number of months or type SKIP if you\'re not sure.\nExample: "24" for 2 years';
+    return progress + '📅 What is your preferred loan tenure?\n\nEnter the number of months.\nExample: "24" for 2 years';
   },
   
   preferred_communication: (state: ConversationState) => {
@@ -182,13 +189,14 @@ const HELP_MESSAGES: Record<FormStep, string> = {
   loan_amount: 'Enter the loan amount you need in numbers only. Don\'t include currency symbols or commas.',
   purpose: 'Briefly describe why you need this loan. Be specific but concise (at least 10 characters).',
   monthly_income: 'Enter your monthly income in numbers only. This helps us assess loan affordability.',
-  employment_status: 'Enter a number (1-3) to select your employment status, or type SKIP to leave this optional.',
-  current_employer: 'Enter your employer\'s name or type SKIP. This information helps with loan assessment.',
-  years_employed: 'Enter the number of years you\'ve been employed or type SKIP. Use whole numbers.',
-  existing_loans: 'Type YES if you have other loans, NO if you don\'t, or SKIP to leave this optional.',
-  preferred_tenure: 'Enter your preferred loan duration in months (e.g., 12, 24, 36) or type SKIP.',
-  preferred_communication: 'Enter a number (1-3) to choose how we contact you, or type SKIP.',
-  review: 'Review your information and type YES to submit, NO to restart, or EDIT to make changes.',
+  employment_status: 'Enter a number (1-3) to select your employment status:\n1. Salaried\n2. Self-employed\n3. Business Owner',
+  current_employer: 'Enter your employer\'s name. This information helps with loan assessment.',
+  years_employed: 'Enter the number of years you\'ve been employed. Use whole numbers.',
+  existing_loans: 'Type YES if you have other loans, NO if you don\'t. This helps us assess your current financial commitments.',
+  cibil_consent: 'Please confirm if you consent to us checking your CIBIL score. Type YES to give consent or NO to deny consent.',
+  preferred_tenure: 'Enter your preferred loan duration in months (e.g., 12 for 1 year, 24 for 2 years, 36 for 3 years).',
+  preferred_communication: 'Enter a number (1-3) to choose how we contact you:\n1. WhatsApp\n2. Email\n3. Both',
+  review: 'Review your information and type:\n• YES to submit\n• NO to restart\n• EDIT followed by the field number to make changes',
   confirm: 'Your application is complete! Type START if you want to submit another application.'
 };
 
@@ -300,6 +308,7 @@ function getFieldLabel(field: keyof LoanApplication): string {
     current_employer: 'Current Employer',
     years_employed: 'Years Employed',
     existing_loans: 'Existing Loans',
+    cibil_consent: 'CIBIL Score Consent',
     preferred_tenure: 'Preferred Tenure',
     preferred_communication: 'Preferred Communication',
     status: 'Application Status',
@@ -312,16 +321,14 @@ function getFieldLabel(field: keyof LoanApplication): string {
 
 // Format application summary with field numbers for editing
 function formatApplicationSummary(application: Partial<LoanApplication>): string {
-  const requiredFields = [
+  // Combine all fields into one section
+  const allFields = [
     'full_name',
     'email',
     'loan_type',
     'loan_amount',
     'purpose',
-    'monthly_income'
-  ];
-
-  const optionalFields = [
+    'monthly_income',
     'employment_status',
     'current_employer',
     'years_employed',
@@ -332,41 +339,23 @@ function formatApplicationSummary(application: Partial<LoanApplication>): string
 
   let summary = '📋 Application Summary\n\n';
   
-  // Add progress bar
-  const completedRequired = requiredFields.filter(field => 
+  // Add progress bar for all fields
+  const completedFields = allFields.filter(field => 
     application[field as keyof LoanApplication] !== undefined
   ).length;
-  const progressBar = '▓'.repeat(completedRequired) + '░'.repeat(requiredFields.length - completedRequired);
-  summary += `📊 Required Fields: ${progressBar} (${Math.round((completedRequired / requiredFields.length) * 100)}%)\n\n`;
+  const progressBar = '▓'.repeat(completedFields) + '░'.repeat(allFields.length - completedFields);
+  summary += `📊 Progress: ${progressBar} (${Math.round((completedFields / allFields.length) * 100)}%)\n\n`;
   
-  // Required Information section
-  summary += '🔒 Required Information:\n';
+  // All Information section
+  summary += '📝 Application Information:\n';
   summary += '━━━━━━━━━━━━━━━━━━━━━\n';
-  requiredFields.forEach((field, index) => {
+  allFields.forEach((field, index) => {
     const value = application[field as keyof LoanApplication];
     const label = getFieldLabel(field as keyof LoanApplication);
     const formattedValue = formatFieldValue(field as keyof LoanApplication, value);
     const status = value !== undefined ? '✅' : '❌';
     summary += `${index + 1}. ${label}\n   ${status} ${formattedValue}\n`;
   });
-
-  // Optional Information section
-  const completedOptional = optionalFields.filter(field => 
-    application[field as keyof LoanApplication] !== undefined
-  ).length;
-  
-  if (completedOptional > 0) {
-    summary += '\n📝 Optional Information:\n';
-    summary += '━━━━━━━━━━━━━━━━━━━━━\n';
-    optionalFields.forEach((field, index) => {
-      const value = application[field as keyof LoanApplication];
-      if (value !== undefined) {
-        const label = getFieldLabel(field as keyof LoanApplication);
-        const formattedValue = formatFieldValue(field as keyof LoanApplication, value);
-        summary += `${index + requiredFields.length + 1}. ${label}\n   ✨ ${formattedValue}\n`;
-      }
-    });
-  }
 
   // Instructions section
   summary += '\n📝 Review Instructions:\n';
@@ -518,6 +507,13 @@ function formatErrorMessage(field: FormStep, error: string): string {
         'Case doesn\'t matter'
       ]
     },
+    cibil_consent: {
+      examples: ['YES', 'NO'],
+      suggestions: [
+        'Type YES to consent',
+        'Type NO to deny consent'
+      ]
+    },
     preferred_tenure: {
       examples: ['12', '24', '36', 'SKIP'],
       suggestions: [
@@ -566,7 +562,7 @@ function formatErrorMessage(field: FormStep, error: string): string {
   return message;
 }
 
-// Update the stepHandlers to use the new error formatter
+// Update the stepHandlers to return to review after editing
 const stepHandlers: Record<FormStep, StepHandler> = {
   start: {
     validate: (input: string): boolean | string => {
@@ -578,115 +574,125 @@ const stepHandlers: Record<FormStep, StepHandler> = {
   },
   full_name: {
     validate: (input: string): boolean | string => {
-      const isValid = input.length >= 2;
-      return isValid || formatErrorMessage('full_name', 'Name must be at least 2 characters long.');
+      const isValid = validators.fullName(input);
+      return isValid || formatErrorMessage('full_name', 
+        'Please enter your full name with at least first and last name, using only letters and spaces. Each name should be at least 2 characters long.');
     },
     process: (input: string) => ({ full_name: input.trim() }),
-    getNextStep: () => 'email',
+    getNextStep: () => 'review',
   },
   email: {
     validate: (input: string): boolean | string => {
       const isValid = validators.email(input);
-      return isValid || formatErrorMessage('email', 'Please enter a valid email address.');
+      return isValid || formatErrorMessage('email', 
+        'Please enter a valid email address in the format: username@domain.com');
     },
     process: (input: string) => ({ email: input.trim().toLowerCase() }),
-    getNextStep: () => 'loan_type',
+    getNextStep: () => 'review',
   },
   loan_type: {
     validate: (input: string): boolean | string => {
-      const validOptions = { '1': 'Personal', '2': 'Business', '3': 'Education', '4': 'Home' };
-      const isValid = input in validOptions;
-      return isValid || formatErrorMessage('loan_type', 'Please select a valid option (1-4).');
+      const isValid = validators.loanType(input);
+      return isValid || formatErrorMessage('loan_type', 
+        'Please select a valid loan type by entering a number from 1 to 4.');
     },
     process: (input: string) => {
       const options = { '1': 'Personal', '2': 'Business', '3': 'Education', '4': 'Home' } as const;
       return { loan_type: options[input as keyof typeof options] };
     },
-    getNextStep: () => 'loan_amount',
+    getNextStep: () => 'review',
   },
   loan_amount: {
     validate: (input: string): boolean | string => {
-      const isValid = validators.number(input);
-      return isValid || formatErrorMessage('loan_amount', 'Please enter a valid amount.');
+      const isValid = validators.loanAmount(input);
+      return isValid || formatErrorMessage('loan_amount', 
+        'Please enter a valid loan amount between ₹10,000 and ₹1,00,00,000 using only numbers.');
     },
     process: (input: string) => ({ loan_amount: Number(input) }),
-    getNextStep: () => 'purpose',
+    getNextStep: () => 'review',
   },
   purpose: {
     validate: (input: string): boolean | string => {
-      const isValid = input.length >= 10;
-      return isValid || formatErrorMessage('purpose', 'Please provide more details (min 10 characters).');
+      const isValid = validators.purpose(input);
+      return isValid || formatErrorMessage('purpose', 
+        'Please provide a clear purpose between 10 and 100 characters, using only letters, numbers, and basic punctuation.');
     },
     process: (input: string) => ({ purpose: input.trim() }),
-    getNextStep: () => 'monthly_income',
+    getNextStep: () => 'review',
   },
   monthly_income: {
     validate: (input: string): boolean | string => {
-      const isValid = validators.number(input);
-      return isValid || formatErrorMessage('monthly_income', 'Please enter a valid amount.');
+      const isValid = validators.monthlyIncome(input);
+      return isValid || formatErrorMessage('monthly_income', 
+        'Please enter your monthly income between ₹10,000 and ₹10,00,000 using only numbers.');
     },
     process: (input: string) => ({ monthly_income: Number(input) }),
-    getNextStep: () => 'employment_status',
+    getNextStep: () => 'review',
   },
   employment_status: {
     validate: (input: string): boolean | string => {
-      if (input.toLowerCase() === 'skip') return true;
-      const validOptions = { '1': true, '2': true, '3': true };
-      const isValid = input in validOptions;
-      return isValid || formatErrorMessage('employment_status', 'Please select a valid option (1-3) or type SKIP.');
+      const isValid = validators.employmentStatus(input);
+      return isValid || formatErrorMessage('employment_status', 
+        'Please select your employment status by entering a number from 1 to 3.');
     },
     process: (input: string) => {
-      if (input.toLowerCase() === 'skip') return {};
       const options = { '1': 'Salaried', '2': 'Self-employed', '3': 'Business Owner' } as const;
       return { employment_status: options[input as keyof typeof options] };
     },
-    getNextStep: (data: Partial<LoanApplication>) => data.employment_status ? 'current_employer' : 'existing_loans',
+    getNextStep: () => 'review',
   },
   current_employer: {
     validate: (input: string): boolean | string => {
-      const isValid = input.toLowerCase() === 'skip' || input.length >= 2;
-      return isValid || formatErrorMessage('current_employer', 'Please enter a valid employer name or type SKIP.');
+      const isValid = validators.currentEmployer(input);
+      return isValid || formatErrorMessage('current_employer', 
+        'Please enter your employer\'s name using 2-50 characters, with only letters, numbers, spaces, and basic punctuation.');
     },
-    process: (input: string) => input.toLowerCase() === 'skip' ? {} : { current_employer: input.trim() },
-    getNextStep: () => 'years_employed',
+    process: (input: string) => ({ current_employer: input.trim() }),
+    getNextStep: () => 'review',
   },
   years_employed: {
     validate: (input: string): boolean | string => {
-      const isValid = input.toLowerCase() === 'skip' || validators.number(input);
-      return isValid || formatErrorMessage('years_employed', 'Please enter a valid number of years or type SKIP.');
+      const isValid = validators.yearsEmployed(input);
+      return isValid || formatErrorMessage('years_employed', 
+        'Please enter a valid number of years between 1 and 50.');
     },
-    process: (input: string) => input.toLowerCase() === 'skip' ? {} : { years_employed: Number(input) },
-    getNextStep: () => 'existing_loans',
+    process: (input: string) => ({ years_employed: Number(input) }),
+    getNextStep: () => 'review',
   },
   existing_loans: {
     validate: (input: string): boolean | string => {
-      const normalized = input.toLowerCase();
-      const isValid = normalized === 'skip' || normalized === 'yes' || normalized === 'no';
-      return isValid || formatErrorMessage('existing_loans', 'Please reply with YES, NO, or SKIP.');
+      const isValid = validators.yesNo(input);
+      return isValid || formatErrorMessage('existing_loans', 
+        'Please reply with YES or NO regarding your existing loans.');
     },
-    process: (input: string) => {
-      const normalized = input.toLowerCase();
-      return normalized === 'skip' ? {} : { existing_loans: normalized === 'yes' };
+    process: (input: string) => ({ existing_loans: input.toLowerCase() === 'yes' }),
+    getNextStep: (data: Partial<LoanApplication>) => data.existing_loans ? 'cibil_consent' : 'preferred_tenure',
+  },
+  cibil_consent: {
+    validate: (input: string): boolean | string => {
+      const isValid = validators.yesNo(input);
+      return isValid || formatErrorMessage('cibil_consent', 
+        'Please reply with YES or NO regarding your consent for CIBIL score check.');
     },
-    getNextStep: () => 'preferred_tenure',
+    process: (input: string) => ({ cibil_consent: input.toLowerCase() === 'yes' }),
+    getNextStep: () => 'review',
   },
   preferred_tenure: {
     validate: (input: string): boolean | string => {
-      const isValid = input.toLowerCase() === 'skip' || validators.number(input);
-      return isValid || formatErrorMessage('preferred_tenure', 'Please enter a valid number of months or type SKIP.');
+      const isValid = validators.preferredTenure(input);
+      return isValid || formatErrorMessage('preferred_tenure', 
+        'Please enter a valid loan tenure between 3 months and 30 years (360 months).');
     },
-    process: (input: string) => input.toLowerCase() === 'skip' ? {} : { preferred_tenure: Number(input) },
-    getNextStep: () => 'preferred_communication',
+    process: (input: string) => ({ preferred_tenure: Number(input) }),
+    getNextStep: () => 'review',
   },
   preferred_communication: {
     validate: (input: string): boolean | string => {
-      if (input.toLowerCase() === 'skip') return true;
-      const validOptions = { '1': true, '2': true, '3': true };
-      const isValid = input in validOptions;
-      return isValid || formatErrorMessage('preferred_communication', 'Please select a valid option (1-3) or type SKIP.');
+      const isValid = validators.communicationPreference(input);
+      return isValid || formatErrorMessage('preferred_communication', 
+        'Please select your preferred communication method by entering a number from 1 to 3.');
     },
     process: (input: string) => {
-      if (input.toLowerCase() === 'skip') return {};
       const options = { '1': 'WhatsApp', '2': 'Email', '3': 'Both' } as const;
       return { preferred_communication: options[input as keyof typeof options] };
     },
@@ -696,7 +702,8 @@ const stepHandlers: Record<FormStep, StepHandler> = {
     validate: (input: string): boolean | string => {
       const normalized = input.toLowerCase();
       const isValid = normalized === 'yes' || normalized === 'no' || normalized.startsWith('edit');
-      return isValid || formatErrorMessage('review', 'Please type YES to submit, NO to start over, or EDIT [number] to modify a field.');
+      return isValid || formatErrorMessage('review', 
+        'Please type YES to submit, NO to start over, or EDIT followed by the field number to modify a field.');
     },
     process: () => ({}),
     getNextStep: () => 'confirm',
@@ -861,15 +868,29 @@ export async function processMessage(phoneNumber: string, message: string): Prom
 
       case 'existing_loans':
         if (message.toLowerCase() === 'skip') {
-          nextStep = 'preferred_tenure';
+          nextStep = 'cibil_consent';
         } else if (message.toLowerCase() === 'yes') {
           formData.existing_loans = true;
-          nextStep = 'preferred_tenure';
+          nextStep = 'cibil_consent';
         } else if (message.toLowerCase() === 'no') {
           formData.existing_loans = false;
-          nextStep = 'preferred_tenure';
+          nextStep = 'cibil_consent';
         } else {
           responseMessage = 'Please reply with YES, NO, or SKIP.';
+        }
+        break;
+
+      case 'cibil_consent':
+        if (message.toLowerCase() === 'skip') {
+          nextStep = 'preferred_tenure';
+        } else if (message.toLowerCase() === 'yes') {
+          formData.cibil_consent = true;
+          nextStep = 'preferred_tenure';
+        } else if (message.toLowerCase() === 'no') {
+          formData.cibil_consent = false;
+          nextStep = 'preferred_tenure';
+        } else {
+          responseMessage = 'Please reply with YES or NO.';
         }
         break;
 

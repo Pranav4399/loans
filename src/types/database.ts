@@ -15,6 +15,7 @@ export interface LoanApplication {
   current_employer?: string;
   years_employed?: number;
   existing_loans?: boolean;
+  cibil_consent?: boolean;
   preferred_tenure?: number;
   preferred_communication?: 'WhatsApp' | 'Email' | 'Both';
   
