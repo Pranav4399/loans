@@ -1,28 +1,28 @@
-# Balan - Loan Management System
+# Balan - WhatsApp Loan Application Bot
 
-A comprehensive loan management system with WhatsApp integration for loan applications and referrals.
+A WhatsApp-based chatbot that helps users apply for loans through a conversational interface. Built with Node.js, TypeScript, and Twilio.
 
 ## Features
 
-- WhatsApp chatbot for direct loan applications
-- WhatsApp chatbot for referral-based applications
-- Admin dashboard for application management
-- Real-time updates and notifications
-- Secure document management
-- Analytics and reporting
+- Conversational loan application process
+- Step-by-step form completion
+- Input validation
+- Progress tracking
+- WhatsApp integration via Twilio
+- Data persistence with Supabase
 
 ## Prerequisites
 
 - Node.js (v16 or higher)
-- npm (v7 or higher)
-- Supabase account
-- WhatsApp Business API access
+- npm or yarn
+- Twilio account with WhatsApp capability
+- Supabase account and project
 
 ## Setup
 
 1. Clone the repository:
 ```bash
-git clone <repository-url>
+git clone https://github.com/yourusername/balan.git
 cd balan
 ```
 
@@ -31,37 +31,65 @@ cd balan
 npm install
 ```
 
-3. Set up environment variables:
+3. Copy the environment template:
 ```bash
-cp .env.example .env
-# Edit .env with your configuration
+cp src/config/env.example .env
 ```
 
-4. Start development server:
+4. Configure environment variables in `.env`:
+- Set your Twilio credentials (`TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_PHONE_NUMBER`)
+- Set your Supabase credentials (`SUPABASE_URL`, `SUPABASE_ANON_KEY`)
+- Configure the webhook URL for production
+- Adjust other settings as needed
+
+5. Build the project:
+```bash
+npm run build
+```
+
+6. Start the server:
+```bash
+npm start
+```
+
+For development:
 ```bash
 npm run dev
 ```
 
+## Environment Variables
+
+| Variable | Description | Example |
+|----------|-------------|---------|
+| PORT | Server port | 3000 |
+| NODE_ENV | Environment (development/production) | production |
+| SUPABASE_URL | Supabase project URL | https://xxx.supabase.co |
+| SUPABASE_ANON_KEY | Supabase anonymous key | your-key |
+| TWILIO_ACCOUNT_SID | Twilio account SID | ACxxxxxxxx |
+| TWILIO_AUTH_TOKEN | Twilio auth token | your-token |
+| TWILIO_PHONE_NUMBER | Twilio WhatsApp number | +1234567890 |
+| WEBHOOK_URL | Production webhook URL | https://your-domain.com/api/webhook |
+
 ## Project Structure
 
 ```
-balan/
-├── src/
-│   ├── api/     # Backend API
-│   ├── bot/     # WhatsApp bot logic
-│   └── web/     # Frontend dashboard
-├── config/      # Configuration files
-└── tests/       # Test files
+src/
+├── config/         # Configuration files
+├── services/       # Core business logic
+│   ├── chatbot.ts    # Chatbot message handling
+│   └── conversation.ts # Conversation state management
+├── types/         # TypeScript type definitions
+└── index.ts      # Application entry point
 ```
 
-## Development
+## Contributing
 
-- `npm run dev`: Start development server
-- `npm run build`: Build for production
-- `npm run test`: Run tests
-- `npm run lint`: Lint code
-- `npm run format`: Format code
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add some amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
 
 ## License
 
-ISC 
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details. 
