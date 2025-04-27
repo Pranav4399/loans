@@ -50,66 +50,106 @@ export async function updateConversationState(
   phone_number: string,
   data: Partial<ConversationState>
 ) {
-  const formattedPhone = formatPhoneNumber(phone_number);
-  console.log(formattedPhone, "FORMATTED PHONE");
-  logger.info('Updating conversation state:', { 
-    original: phone_number,
-    formatted: formattedPhone,
-    data: JSON.stringify(data)
-  });
+  try {
+    const formattedPhone = formatPhoneNumber(phone_number);
+    logger.info('Updating conversation state:', { 
+      original: phone_number,
+      formatted: formattedPhone,
+      data: JSON.stringify(data)
+    });
 
-  const { data: existing } = await supabase
-    .from(TABLES.CONVERSATION_STATES)
-    .select()
-    .eq('phone_number', formattedPhone)
-    .eq('is_complete', false)
-    .single();
-
-  console.log(existing, "EXISTING");
-
-  if (!existing) {
-    const { data: result, error } = await supabase
+    // First try to get existing conversation
+    const { data: existing, error: fetchError } = await supabase
       .from(TABLES.CONVERSATION_STATES)
-      .insert([{
+      .select()
+      .eq('phone_number', formattedPhone)
+      .eq('is_complete', false)
+      .single();
+
+    if (fetchError && fetchError.code !== 'PGRST116') {
+      logger.error('Error fetching conversation state:', { 
+        error: fetchError,
+        formattedPhone 
+      });
+      throw fetchError;
+    }
+
+    logger.info('Existing conversation state:', { existing });
+
+    if (!existing) {
+      // Create new conversation state
+      const newState = {
         phone_number: formattedPhone,
         ...data,
         created_at: new Date().toISOString(),
         last_updated: new Date().toISOString(),
         is_complete: false,
-      }])
+      };
+
+      console.log(newState, "NEW STATE");
+
+      logger.info('Creating new conversation state:', { newState });
+
+      const { data: result, error: insertError } = await supabase
+        .from(TABLES.CONVERSATION_STATES)
+        .insert([newState])
+        .select()
+        .single();
+
+      if (insertError) {
+        logger.error('Error creating conversation state:', { 
+          error: insertError,
+          formattedPhone,
+          newState
+        });
+        throw insertError;
+      }
+
+      logger.info('Successfully created conversation state:', { result });
+      return result;
+    }
+
+    // Update existing conversation state
+    const updatedState = {
+      ...data,
+      last_updated: new Date().toISOString(),
+    };
+
+    logger.info('Updating existing conversation state:', { 
+      id: existing.id,
+      updatedState 
+    });
+
+    const { data: result, error: updateError } = await supabase
+      .from(TABLES.CONVERSATION_STATES)
+      .update(updatedState)
+      .eq('id', existing.id)
       .select()
       .single();
 
-    if (error) {
-      logger.error('Error creating conversation state:', { 
-        error,
+    if (updateError) {
+      logger.error('Error updating conversation state:', { 
+        error: updateError,
         formattedPhone,
-        data: JSON.stringify(data)
+        updatedState
       });
-      throw error;
+      throw updateError;
     }
+
+    logger.info('Successfully updated conversation state:', { result });
     return result;
-  }
-
-  const { data: result, error } = await supabase
-    .from(TABLES.CONVERSATION_STATES)
-    .update({
-      ...data,
-      last_updated: new Date().toISOString(),
-    })
-    .eq('id', existing.id)
-    .select()
-    .single();
-
-  if (error) {
-    logger.error('Error updating conversation state:', { 
-      error,
-      formattedPhone,
-      data: JSON.stringify(data)
+  } catch (error) {
+    logger.error('Unexpected error in updateConversationState:', {
+      error: error instanceof Error ? {
+        name: error.name,
+        message: error.message,
+        stack: error.stack
+      } : error,
+      phone_number,
+      data
     });
     throw error;
   }
-  return result;
 }
 
 // Helper functions for loan applications
