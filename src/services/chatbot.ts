@@ -711,10 +711,21 @@ const stepHandlers: Record<FormStep, StepHandler> = {
 // Process user response
 export async function processMessage(phoneNumber: string, message: string): Promise<void> {
   try {
+    logger.info('Starting message processing:', { phoneNumber, message });
+    
     let state = await getConversationState(phoneNumber);
+    logger.info('Retrieved conversation state:', { 
+      state: state ? {
+        current_step: state.current_step,
+        is_complete: state.is_complete,
+        has_form_data: !!state.form_data
+      } : null 
+    });
+
     const userInput = message.trim();
 
     if (!state) {
+      logger.info('No existing state found, creating new conversation');
       state = await updateConversationState(phoneNumber, {
         current_step: 'start' as FormStep,
         form_data: {},
@@ -723,11 +734,16 @@ export async function processMessage(phoneNumber: string, message: string): Prom
         last_updated: new Date().toISOString(),
         is_complete: false
       });
+      logger.info('Created new conversation state:', { 
+        current_step: state.current_step,
+        phone_number: state.phone_number
+      });
     }
 
     // Check for navigation commands first
     const navigationResult = await handleNavigationCommand(userInput, state, phoneNumber);
     if (navigationResult.handled) {
+      logger.info('Handled navigation command:', { command: userInput });
       await sendWhatsAppMessage(phoneNumber, navigationResult.nextMessage);
       return;
     }
@@ -960,10 +976,21 @@ export async function processMessage(phoneNumber: string, message: string): Prom
 
     await sendWhatsAppMessage(phoneNumber, responseMessage);
   } catch (error) {
-    logger.error('Error processing message:', { error, phoneNumber });
+    logger.error('Error processing message:', { 
+      error: error instanceof Error ? {
+        name: error.name,
+        message: error.message,
+        stack: error.stack
+      } : error,
+      phoneNumber,
+      message 
+    });
+    
+    // Send a more detailed error message to help with debugging
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     await sendWhatsAppMessage(
       phoneNumber,
-      'Sorry, an error occurred. Please type RESTART to begin again or HELP for assistance.'
+      `Sorry, we encountered an error: ${errorMessage}\n\nPlease type RESTART to begin again or contact support if the issue persists.`
     );
   }
 } 
