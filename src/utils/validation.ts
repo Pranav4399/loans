@@ -2,8 +2,13 @@
 export const validators = {
   // Basic validators
   email: (value: string): boolean => {
-    const emailRegex = /^[a-zA-Z0-9._-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     return emailRegex.test(value);
+  },
+
+  phoneNumber: (value: string): boolean => {
+    const phoneRegex = /^\+[1-9]\d{1,14}$/;
+    return phoneRegex.test(value);
   },
 
   number: (value: string): boolean => {
@@ -13,9 +18,8 @@ export const validators = {
 
   // Name validation
   fullName: (value: string): boolean => {
-    // At least two words, only letters and spaces, minimum 2 chars per word
-    const nameRegex = /^[A-Za-z]{2,}(?:\s[A-Za-z]{2,})+$/;
-    return nameRegex.test(value);
+    const nameParts = value.trim().split(/\s+/);
+    return nameParts.length >= 2 && nameParts.every(part => part.length >= 2);
   },
 
   // Loan type validation (1-4)

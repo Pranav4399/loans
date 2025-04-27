@@ -1,13 +1,14 @@
-import { ConversationState, LoanApplication } from '../types/database';
+import { ConversationState, LoanApplication, Referrer, ConversationData } from '../types/database';
 import { getConversationState, updateConversationState } from '../config/supabase';
 import { FORM_STEPS, STEP_MESSAGES, FormStep } from './chatbot';
 import { validators } from '../utils/validation';
+import { createReferrer, getReferrerByPhone } from './referrer';
 import logger from '../config/logger';
 
 export interface StepHandler {
   validate: (input: string) => boolean | string;
-  process: (input: string) => Partial<LoanApplication>;
-  getNextStep: (currentData: Partial<LoanApplication>) => FormStep;
+  process: (input: string) => ConversationData | Promise<ConversationData>;
+  getNextStep: (currentData: Partial<LoanApplication>, state: ConversationState) => FormStep | Promise<FormStep>;
 }
 
 // Step handlers for each form field
@@ -15,8 +16,94 @@ const stepHandlers: Record<FormStep, StepHandler> = {
   start: {
     validate: (input: string): boolean => input.toLowerCase() === 'yes',
     process: () => ({}),
-    getNextStep: () => 'full_name',
+    getNextStep: () => 'is_referral',
   },
+
+  is_referral: {
+    validate: (input: string): boolean | string => 
+      ['1', '2'].includes(input) || 'Please select a valid option (1-2)',
+    process: (input: string) => ({ is_referral: input === '2' }),
+    getNextStep: (data: Partial<LoanApplication>) => 
+      data.is_referral ? 'referrer_details' : 'full_name',
+  },
+
+  referrer_details: {
+    validate: (input: string): boolean => input.toLowerCase() === 'yes',
+    process: () => ({}),
+    getNextStep: () => 'referrer_name',
+  },
+
+  referrer_name: {
+    validate: (input: string): boolean | string => 
+      validators.fullName(input) || 'Please enter your full name with at least first and last name',
+    process: (input: string) => ({
+      referrer_data: { full_name: input.trim() }
+    }),
+    getNextStep: () => 'referrer_phone',
+  },
+
+  referrer_phone: {
+    validate: (input: string): boolean | string => 
+      validators.phoneNumber(input) || 'Please enter a valid phone number with country code',
+    process: async (input: string) => {
+      const formattedPhone = input.trim();
+      const existingReferrer = await getReferrerByPhone(formattedPhone);
+      if (existingReferrer) {
+        return {
+          referrer_data: {
+            ...existingReferrer,
+            phone_number: formattedPhone
+          }
+        };
+      }
+      return { referrer_data: { phone_number: formattedPhone } };
+    },
+    getNextStep: (_, state: ConversationState) => {
+      if (state.referrer_data?.email) {
+        return 'referrer_relationship';
+      }
+      return 'referrer_email';
+    },
+  },
+
+  referrer_email: {
+    validate: (input: string): boolean | string => 
+      validators.email(input) || 'Please enter a valid email address',
+    process: (input: string) => ({
+      referrer_data: { email: input.trim().toLowerCase() }
+    }),
+    getNextStep: () => 'referrer_relationship',
+  },
+
+  referrer_relationship: {
+    validate: (input: string): boolean | string => 
+      ['1', '2', '3', '4', '5'].includes(input) || 'Please select a valid option (1-5)',
+    process: (input: string) => {
+      const options = {
+        '1': 'Family',
+        '2': 'Friend',
+        '3': 'Colleague',
+        '4': 'Business Associate',
+        '5': 'Other'
+      } as const;
+      return {
+        referrer_data: {
+          relationship_to_applicant: options[input as keyof typeof options]
+        }
+      };
+    },
+    getNextStep: async (_, state: ConversationState): Promise<FormStep> => {
+      // Create or update referrer in database
+      if (state.referrer_data) {
+        const referrer = await createReferrer(state.referrer_data as Omit<Referrer, 'id' | 'created_at' | 'last_updated'>);
+        await updateConversationState(state.phone_number, {
+          referrer_data: referrer
+        });
+      }
+      return 'full_name' as FormStep;
+    },
+  },
+
   full_name: {
     validate: (input: string): boolean | string => 
       validators.fullName(input) || 'Please enter your full name with at least first and last name',
@@ -158,11 +245,11 @@ export async function handleConversationStep(
     }
 
     // Process input and update form data
-    const newData = handler.process(message);
+    const newData = await handler.process(message);
     const updatedFormData = { ...state.form_data, ...newData };
     
     // Determine next step
-    const nextStep = handler.getNextStep(updatedFormData);
+    const nextStep = await handler.getNextStep(updatedFormData, state);
     
     // Update conversation state
     await updateConversationState(phoneNumber, {
@@ -210,7 +297,13 @@ function getPreviousStep(currentStep: FormStep): FormStep {
 
 // Help messages for each step
 const HELP_MESSAGES: Record<FormStep, string> = {
-  start: 'Type YES to start your loan application.\n\nYou can type EXIT at any time to cancel the current application.',
+  start: 'Type YES to start your loan application.',
+  is_referral: 'Enter 1 if you\'re applying for yourself, or 2 if you\'re referring someone else for a loan.',
+  referrer_details: 'Type YES to proceed with entering your details as the referrer.',
+  referrer_name: 'Please enter your full name as it appears on official documents. You can use letters and spaces.',
+  referrer_phone: 'Enter your phone number with country code. This will be used to contact you about the referral.',
+  referrer_email: 'Enter a valid email address. We\'ll use this to keep you updated about the referral.',
+  referrer_relationship: 'Enter a number (1-5) to select your relationship with the applicant:\n1. Family\n2. Friend\n3. Colleague\n4. Business Associate\n5. Other',
   full_name: 'Please enter your full name as it appears on official documents. Use letters and spaces only.',
   email: 'Enter a valid email address that you regularly check. We\'ll use this for important updates.',
   loan_type: 'Enter a number (1-4) to select your loan type:\n1. Personal Loan\n2. Business Loan\n3. Education Loan\n4. Home Loan',

@@ -159,7 +159,7 @@ export async function createLoanApplication(application: Partial<LoanApplication
   });
 
   const { data, error } = await supabase
-    .from(TABLES.LOAN_APPLICATIONS)
+    .from("loan_applications")
     .insert([{
       ...application,
       phone_number: formattedPhone,
@@ -184,7 +184,7 @@ export async function createLoanApplication(application: Partial<LoanApplication
 // Get loan application status
 export async function getLoanApplicationStatus(id: string) {
   const { data, error } = await supabase
-    .from(TABLES.LOAN_APPLICATIONS)
+    .from("loan_applications")
     .select('id, status, last_updated')
     .eq('id', id)
     .single();
@@ -196,7 +196,7 @@ export async function getLoanApplicationStatus(id: string) {
 // Get loan applications by phone number
 export async function getLoanApplicationsByPhone(phone_number: string) {
   const { data, error } = await supabase
-    .from(TABLES.LOAN_APPLICATIONS)
+    .from("loan_applications")
     .select('*')
     .eq('phone_number', phone_number)
     .order('created_at', { ascending: false });

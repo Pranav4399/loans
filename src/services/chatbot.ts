@@ -8,6 +8,12 @@ import logger from '../config/logger';
 // Form steps configuration
 export type FormStep = 
   | 'start'
+  | 'is_referral'
+  | 'referrer_details'
+  | 'referrer_name'
+  | 'referrer_phone'
+  | 'referrer_email'
+  | 'referrer_relationship'
   | 'full_name'
   | 'email'
   | 'loan_type'
@@ -22,10 +28,20 @@ export type FormStep =
   | 'preferred_tenure'
   | 'preferred_communication'
   | 'review'
-  | 'confirm';
+  | 'confirm'
+  | 'referrer_name'
+  | 'referrer_phone'
+  | 'referrer_email'
+  | 'referrer_relationship';
 
 export const FORM_STEPS: Record<Uppercase<FormStep>, FormStep> = {
   START: 'start',
+  IS_REFERRAL: 'is_referral',
+  REFERRER_DETAILS: 'referrer_details',
+  REFERRER_NAME: 'referrer_name',
+  REFERRER_PHONE: 'referrer_phone',
+  REFERRER_EMAIL: 'referrer_email',
+  REFERRER_RELATIONSHIP: 'referrer_relationship',
   FULL_NAME: 'full_name',
   EMAIL: 'email',
   LOAN_TYPE: 'loan_type',
@@ -40,7 +56,7 @@ export const FORM_STEPS: Record<Uppercase<FormStep>, FormStep> = {
   PREFERRED_TENURE: 'preferred_tenure',
   PREFERRED_COMMUNICATION: 'preferred_communication',
   REVIEW: 'review',
-  CONFIRM: 'confirm'
+  CONFIRM: 'confirm',
 } as const;
 
 // Calculate form progress
@@ -105,6 +121,36 @@ function getProgressMessage(currentStep: FormStep, formData: Partial<LoanApplica
 export type StepMessage = string | ((state: ConversationState) => string);
 export const STEP_MESSAGES: Record<FormStep, StepMessage> = {
   start: '👋 Welcome to the Loan Application Bot!\n\nI\'ll help you complete your loan application step by step. You can type:\n• BACK - to go to previous step\n• RESTART - to start over\n• EXIT - to cancel current application\n• HELP - to see instructions\n\nReady to begin? (Reply YES to start)',
+  
+  is_referral: (state: ConversationState) => {
+    const progress = getProgressMessage('is_referral', state.form_data);
+    return progress + '🤝 Are you applying for yourself or referring someone else?\n\nChoose from these options:\n1️⃣ Applying for myself\n2️⃣ Referring someone else\n\nReply with the number (1-2)';
+  },
+
+  referrer_details: (state: ConversationState) => {
+    const progress = getProgressMessage('referrer_details', state.form_data);
+    return progress + '📝 Great! First, I\'ll need some information about you as the referrer. Then we\'ll collect the applicant\'s details.\n\nReply YES to continue.';
+  },
+
+  referrer_name: (state: ConversationState) => {
+    const progress = getProgressMessage('referrer_name', state.form_data);
+    return progress + '📝 What is your full name (as the referrer)?\n\nPlease enter your complete name as it appears on official documents.\nExample: "John Michael Smith"';
+  },
+
+  referrer_phone: (state: ConversationState) => {
+    const progress = getProgressMessage('referrer_phone', state.form_data);
+    return progress + '📱 What is your phone number (as the referrer)?\n\nPlease enter a valid phone number with country code.\nExample: "+919876543210"';
+  },
+
+  referrer_email: (state: ConversationState) => {
+    const progress = getProgressMessage('referrer_email', state.form_data);
+    return progress + '📧 What is your email address (as the referrer)?\n\nWe\'ll use this to keep you updated about the referral.\nExample: "john.smith@email.com"';
+  },
+
+  referrer_relationship: (state: ConversationState) => {
+    const progress = getProgressMessage('referrer_relationship', state.form_data);
+    return progress + '👥 What is your relationship with the loan applicant?\n\nChoose from these options:\n1️⃣ Family\n2️⃣ Friend\n3️⃣ Colleague\n4️⃣ Business Associate\n5️⃣ Other\n\nReply with the number (1-5)';
+  },
   
   full_name: (state: ConversationState) => {
     const progress = getProgressMessage('full_name', state.form_data);
@@ -177,7 +223,7 @@ export const STEP_MESSAGES: Record<FormStep, StepMessage> = {
     return `${progress}${summary}`;
   },
   
-  confirm: '🎉 Thank you for completing your loan application!\n\nOur team will review your application and contact you soon through your preferred communication channel.\n\nReference Number: {ref_number}\n\nType START if you\'d like to submit another application.'
+  confirm: '🎉 Thank you for completing your loan application!\n\nOur team will review your application and contact you soon through your preferred communication channel.\n\nReference Number: {ref_number}\n\nType START if you\'d like to submit another application.',
 };
 
 // Help message for each step
@@ -197,7 +243,13 @@ const HELP_MESSAGES: Record<FormStep, string> = {
   preferred_tenure: 'Enter your preferred loan duration in months (e.g., 12 for 1 year, 24 for 2 years, 36 for 3 years).',
   preferred_communication: 'Enter a number (1-3) to choose how we contact you:\n1. WhatsApp\n2. Email\n3. Both',
   review: 'Review your information and type:\n• YES to submit\n• NO to restart\n• EDIT followed by the field number to make changes',
-  confirm: 'Your application is complete! Type START if you want to submit another application.'
+  confirm: 'Your application is complete! Type START if you want to submit another application.',
+  is_referral: 'Enter 1 if you\'re applying for yourself, or 2 if you\'re referring someone else for a loan.',
+  referrer_details: 'Type YES to proceed with entering your details as the referrer.',
+  referrer_name: 'Please enter your full name as it appears on official documents. You can use letters and spaces.',
+  referrer_phone: 'Enter your phone number with country code. This will be used to contact you about the referral.',
+  referrer_email: 'Enter a valid email address. We\'ll use this to keep you updated about the referral.',
+  referrer_relationship: 'Enter a number (1-5) to select your relationship with the applicant:\n1. Family\n2. Friend\n3. Colleague\n4. Business Associate\n5. Other',
 };
 
 // Get previous step in the form flow
@@ -314,7 +366,9 @@ function getFieldLabel(field: keyof LoanApplication): string {
     status: 'Application Status',
     created_at: 'Created At',
     last_updated: 'Last Updated',
-    id: 'Application ID'
+    id: 'Application ID',
+    is_referral: 'Is Referral',
+    referrer_id: 'Referrer ID'
   };
   return labels[field];
 }
@@ -541,6 +595,51 @@ function formatErrorMessage(field: FormStep, error: string): string {
     confirm: {
       examples: ['START'],
       suggestions: ['Type START to begin a new application']
+    },
+    is_referral: {
+      examples: ['YES', 'NO'],
+      suggestions: [
+        'Type YES if you were referred by someone',
+        'Type NO if you are applying on your own'
+      ]
+    },
+    referrer_details: {
+      examples: ['YES', 'NO'],
+      suggestions: [
+        'Type YES if you were referred by someone',
+        'Type NO if you are applying on your own'
+      ]
+    },
+    referrer_name: {
+      examples: ['John Smith', 'Mary Jane Wilson'],
+      suggestions: [
+        'Enter the full name of the person who referred you',
+        'Use the name as it appears on official documents'
+      ]
+    },
+    referrer_phone: {
+      examples: ['+1234567890', 'SKIP'],
+      suggestions: [
+        'Enter the phone number of the person who referred you',
+        'Use the number as it appears on official documents',
+        'Type SKIP if you don\'t want to provide this information'
+      ]
+    },
+    referrer_email: {
+      examples: ['john.smith@email.com', 'mary.jane@company.co.uk'],
+      suggestions: [
+        'Enter the email address of the person who referred you',
+        'Use the address as it appears on official documents',
+        'Type SKIP if you don\'t want to provide this information'
+      ]
+    },
+    referrer_relationship: {
+      examples: ['1', '2', '3', '4', '5'],
+      suggestions: [
+        'Enter the number of the relationship you have with the referrer',
+        'Choose from the options shown',
+        'Don\'t type the option name, just the number'
+      ]
     }
   };
 
@@ -713,6 +812,74 @@ const stepHandlers: Record<FormStep, StepHandler> = {
     process: () => ({}),
     getNextStep: () => 'start',
   },
+  is_referral: {
+    validate: (input: string): boolean | string => {
+      const isValid = validators.yesNo(input);
+      return isValid || formatErrorMessage('is_referral', 
+        'Please reply with YES or NO regarding your referral status.');
+    },
+    process: (input: string) => ({ is_referral: input.toLowerCase() === 'yes' }),
+    getNextStep: () => 'referrer_details',
+  },
+  referrer_details: {
+    validate: (input: string): boolean | string => {
+      const isValid = validators.yesNo(input);
+      return isValid || formatErrorMessage('referrer_details', 
+        'Please reply with YES or NO regarding your referral status.');
+    },
+    process: (input: string) => ({ is_referral: input.toLowerCase() === 'yes' }),
+    getNextStep: () => 'referrer_details',
+  },
+  referrer_name: {
+    validate: (input: string): boolean | string => {
+      const isValid = validators.fullName(input);
+      return isValid || formatErrorMessage('referrer_name', 
+        'Please enter your full name as it appears on official documents.');
+    },
+    process: (input: string) => ({ referrer_data: { full_name: input.trim() } }),
+    getNextStep: () => 'referrer_phone',
+  },
+  referrer_phone: {
+    validate: (input: string): boolean | string => {
+      const isValid = validators.phoneNumber(input);
+      return isValid || formatErrorMessage('referrer_phone', 
+        'Please enter a valid phone number with country code.');
+    },
+    process: (input: string) => ({ referrer_data: { phone_number: input.trim() } }),
+    getNextStep: () => 'referrer_email',
+  },
+  referrer_email: {
+    validate: (input: string): boolean | string => {
+      const isValid = validators.email(input);
+      return isValid || formatErrorMessage('referrer_email', 
+        'Please enter a valid email address.');
+    },
+    process: (input: string) => ({ referrer_data: { email: input.trim().toLowerCase() } }),
+    getNextStep: () => 'referrer_relationship',
+  },
+  referrer_relationship: {
+    validate: (input: string): boolean | string => {
+      const isValid = validators.number(input) && Number(input) >= 1 && Number(input) <= 5;
+      return isValid || formatErrorMessage('referrer_relationship', 
+        'Please select your relationship with the applicant by entering a number from 1 to 5.');
+    },
+    process: (input: string) => {
+      const relationships = {
+        '1': 'Family',
+        '2': 'Friend',
+        '3': 'Colleague',
+        '4': 'Business Associate',
+        '5': 'Other'
+      } as const;
+      return { 
+        referrer_data: { 
+          relationship_to_applicant: relationships[input as keyof typeof relationships] 
+        } 
+      };
+    },
+    getNextStep: () => 'referrer_name',
+  },
+  
 };
 
 // Process user response

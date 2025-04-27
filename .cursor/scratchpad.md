@@ -76,129 +76,38 @@
    - Webhook endpoints properly configured
 
 ## Project Status Board
-- [x] Phase 1: Setup and Infrastructure
-  - [x] Task 1: Project initialization
-    - Created Node.js project with TypeScript
-    - Installed necessary dependencies
-    - Set up basic Express server with health check
-    - Created project structure
-  - [x] Task 2: Supabase setup
-    - Created database schema with proper types
-    - Set up tables for loan applications and conversation states
-    - Implemented helper functions for database operations
-    - Added proper indexes and constraints
-  - [x] Task 3: WhatsApp API setup
-    - Implemented Twilio WhatsApp integration
-    - Created webhook endpoint for message handling
-    - Set up conversation flow manager
-    - Added message validation and error handling
+- [x] Task 1: Database Schema Updates (Completed)
+  - [x] Created new 'referrers' table with necessary fields
+  - [x] Added referrer relationship to loan applications
+  - [x] Added indexes and constraints
+  - [x] Added RLS policies
+  - [x] Updated conversation_states for referral flow
+- [x] Task 2: Backend API Updates (Completed)
+  - [x] Updated database types to include referrer interfaces
+  - [x] Created referrer service with CRUD operations
+  - [x] Added helper functions for referrer-related queries
+  - [x] Set up Supabase client configuration
+- [x] Task 3: Frontend Form Flow Updates (Completed)
+  - [x] Added new form steps for referrer flow
+  - [x] Updated conversation state handling
+  - [x] Added validation for referrer fields
+  - [x] Integrated referrer creation/update in flow
+  - [x] Added help messages and error handling
+- [ ] Task 4: Testing and Validation (Not Started)
 
-- [x] Phase 2: Core Implementation
-  - [x] Task 4: Webhook handler
-    - Created webhook endpoint structure
-    - Added request validation
-    - Implemented message processing
-    - Added TwiML response
-    - Fixed TypeScript type issues
-  - [x] Task 5: Conversation manager
-    - Implemented step-by-step form flow
-    - Added input validation for each step
-    - Created handlers for form fields
-    - Added support for optional fields
-    - Implemented state management
-  - [x] Task 6: Form flow
-    - [x] Enhance message formatting with emojis and clear instructions
-      - Added relevant emojis for each step
-      - Included clear examples and formatting
-      - Added instructions for navigation commands
-    - [x] Implement navigation commands (back, restart, help)
-      - Added BACK command to return to previous step
-      - Added RESTART command to begin fresh
-      - Added HELP command with context-specific guidance
-      - Preserved form data when going back
-    - [x] Add progress tracking (step numbers and completion percentage)
-      - Added step numbers (e.g., "Step 3 of 15")
-      - Implemented completion percentage
-      - Tracked required vs optional fields
-      - Added progress indicators to each message
-    - [x] Fix TypeScript errors and improve type safety
-      - Added missing 'last_updated' field in getFieldLabel
-      - Fixed StepMessage type handling in handleEditCommand
-      - Improved type safety in conversation state management
-      - Verified all TypeScript errors are resolved
-    - [x] Improve review step with clear summary and edit options
-      - Added visual progress bar for required fields
-      - Enhanced formatting with clear section headers and separators
-      - Added status indicators for field completion
-      - Improved instructions with numbered steps
-      - Added better visual hierarchy with indentation
-      - Only show optional fields when completed
-      - Made edit instructions clearer with examples
-    - [x] Enhance error handling with specific messages and examples
-      - Created formatErrorMessage function for structured error responses
-      - Added field-specific examples for correct input
-      - Included helpful suggestions for common mistakes
-      - Enhanced error messages with emojis and clear formatting
-      - Implemented context-aware error handling for each field type
-      - Added HELP command integration with error messages
-  - [x] Task 7: Data storage
-    - [x] Implement basic CRUD operations for loan applications
-      - Added getLoanApplicationStatus for status checks
-      - Added getLoanApplicationsByPhone for history lookup
-      - Enhanced createLoanApplication with better validation
-      - Implemented updateLoanApplication for status updates
-      - Added proper error handling and logging
-    - [x] Add data validation before storage
-      - Using TypeScript types for type safety
-      - SQL constraints for data integrity
-      - Input validation in step handlers
-      - Sanitization of inputs before storage
-    - [x] Implement conversation state persistence
-      - Efficient state updates with updateConversationState
-      - Proper handling of incomplete conversations
-      - Added cleanup for stale conversations
-      - Maintaining form data across sessions
-
-- [ ] Phase 3: Testing and Deployment
-  - [ ] Task 8: Testing (Deferred)
-  - [ ] Task 9: Deployment
-    - [x] Environment Setup
-      - Create production .env file template
-      - Document required environment variables
-      - [x] Set up error logging
-        - Installed Winston logger
-        - Configured different log levels
-        - Set up file and console transports
-        - Added environment-based log level control
-    - [x] Webhook Configuration
-      - [x] Configure Twilio webhook URL
-        - Added ngrok for development webhook testing
-        - Created dev-server script for local testing
-        - Added webhook URL logging
-      - [x] Set up SSL for webhook endpoint
-        - Using ngrok's secure HTTPS URLs for development
-        - Automatic SSL certificate management
-      - [x] Verify webhook connectivity
-        - Added proper error handling
-        - Added request validation
-        - Added response logging
-    - [x] Basic Deployment
-      - [x] Configure for Heroku deployment
-        - Created Procfile
-        - Added app.json configuration
-        - Updated package.json with proper scripts
-        - Added Node.js engine requirements
-      - [x] Add production optimizations
-        - Added compression middleware
-        - Added security headers (helmet)
-        - Added rate limiting
-        - Enhanced error handling
-        - Improved health check endpoint
-      - [ ] Ready for deployment
-        - Waiting for Heroku CLI setup
-        - Need to create Heroku app
-        - Need to configure environment variables
-        - Need to deploy and test
+## Current Status / Progress Tracking
+- Added new form steps:
+  - is_referral: Choose between self-application and referral
+  - referrer_details: Introduction to referrer information collection
+  - referrer_name: Collect referrer's full name
+  - referrer_phone: Collect referrer's phone number
+  - referrer_email: Collect referrer's email
+  - referrer_relationship: Specify relationship with applicant
+- Added validation for all referrer fields
+- Implemented referrer data persistence
+- Added proper error messages and help text
+- Updated conversation flow to handle both direct and referral applications
+- Ready for review before proceeding to Task 4
 
 ## Executor's Feedback or Assistance Requests
 To complete the deployment, I need:
@@ -222,4 +131,69 @@ To complete the deployment, I need:
 - Handle edge cases like invalid inputs and timeouts
 - TypeScript and Express type definitions need careful handling
 - Implement step-by-step validation for better user experience
-- Use type-safe handlers for form fields 
+- Use type-safe handlers for form fields
+
+# Referrer Functionality Implementation Plan
+
+## Background and Motivation
+- Currently, the system allows users to directly apply for loans by filling out a form with their details
+- A new requirement has been added to allow referrers to submit loan applications on behalf of others
+- This requires capturing both the loan applicant's details and the referrer's information
+- The goal is to reuse the existing form while adding referrer-specific functionality
+
+## Key Challenges and Analysis
+1. Data Model Extension
+   - Need to extend the database schema to store referrer information
+   - Must maintain relationships between referrers and loan applications
+   - Need to track which applications came through referrers
+
+2. UI/UX Considerations
+   - Need to clearly distinguish between direct applications and referral applications
+   - Must maintain a smooth user experience while collecting additional information
+   - Should make it clear who the application is for vs who is submitting it
+
+3. Form Flow Modifications
+   - Need to modify the existing form flow to accommodate referrer information
+   - Must ensure validation works for both direct and referral applications
+   - Need to handle the submission and storage of both sets of information
+
+## High-level Task Breakdown
+
+1. Database Schema Updates
+   - [ ] Create a new 'referrers' table in the database
+   - [ ] Add necessary foreign key relationships to loan applications
+   - Success Criteria: Database schema updated and migrations run successfully
+
+2. Backend API Updates
+   - [ ] Create new endpoints for referrer-related operations
+   - [ ] Modify existing loan application endpoints to handle referrer data
+   - Success Criteria: API endpoints tested and working correctly
+
+3. Frontend Form Flow Updates
+   - [ ] Add a toggle/switch to indicate if application is being submitted by a referrer
+   - [ ] Create new form components for referrer information
+   - [ ] Modify form submission logic to handle both flows
+   - Success Criteria: Form correctly handles both direct and referral applications
+
+4. Testing and Validation
+   - [ ] Add tests for new database operations
+   - [ ] Add tests for new API endpoints
+   - [ ] Add tests for form validation and submission
+   - Success Criteria: All tests passing, both flows working as expected
+
+## Project Status Board
+- [ ] Task 1: Database Schema Updates (Not Started)
+- [ ] Task 2: Backend API Updates (Not Started)
+- [ ] Task 3: Frontend Form Flow Updates (Not Started)
+- [ ] Task 4: Testing and Validation (Not Started)
+
+## Current Status / Progress Tracking
+- Project initialized
+- Initial planning completed
+- Awaiting approval to begin implementation
+
+## Executor's Feedback or Assistance Requests
+- No feedback yet
+
+## Lessons
+- No lessons recorded yet 
