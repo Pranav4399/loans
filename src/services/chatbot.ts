@@ -67,222 +67,55 @@ export const FORM_STEPS: Record<Uppercase<FormStep>, FormStep> = {
   ...REFERRAL_STEPS
 } as const;
 
-// Calculate form progress
-function calculateProgress(currentStep: FormStep, formData: Partial<LoanApplication>): {
-  currentStepNumber: number;
-  totalSteps: number;
-  percentage: number;
-  requiredFieldsCompleted: number;
-  totalRequiredFields: number;
-} {
-  // Define the flow based on whether it's a referral or direct application
-  const isReferral = formData.is_referral === true;
-  
-  // Define the steps sequence based on application type
-  let steps: FormStep[];
-  
-  if (isReferral) {
-    // For referrals, include referrer steps in the flow
-    steps = [
-      'start',
-      'is_referral',
-      'referrer_details',
-      'referrer_name',
-      'referrer_phone', 
-      'referrer_email',
-      'referrer_relationship',
-      'full_name',
-      'email',
-      'loan_type',
-      'loan_amount',
-      'purpose',
-      'monthly_income',
-      'employment_status',
-      'current_employer',
-      'years_employed',
-      'existing_loans',
-      'cibil_consent',
-      'preferred_tenure',
-      'preferred_communication',
-      'review',
-      'confirm'
-    ];
-  } else {
-    // For direct applications, exclude referrer steps
-    steps = [
-      'start',
-      'is_referral', 
-      'full_name',
-      'email',
-      'loan_type',
-      'loan_amount',
-      'purpose',
-      'monthly_income',
-      'employment_status',
-      'current_employer',
-      'years_employed',
-      'existing_loans',
-      'cibil_consent', 
-      'preferred_tenure',
-      'preferred_communication',
-      'review',
-      'confirm'
-    ];
-  }
-  
-  const currentIndex = steps.indexOf(currentStep);
-  
-  // Define required fields
-  const requiredFields = [
-    'full_name',
-    'email',
-    'loan_type',
-    'loan_amount',
-    'purpose',
-    'monthly_income'
-  ];
-  
-  // Count completed required fields
-  const completedRequired = requiredFields.filter(field => 
-    formData[field as keyof LoanApplication] !== undefined
-  ).length;
-  
-  // Calculate percentage (based on required fields)
-  const percentage = Math.round((completedRequired / requiredFields.length) * 100);
-  
-  return {
-    currentStepNumber: currentIndex + 1,
-    totalSteps: steps.length,
-    percentage,
-    requiredFieldsCompleted: completedRequired,
-    totalRequiredFields: requiredFields.length
-  };
-}
-
 // Format progress message
-function getProgressMessage(currentStep: FormStep, formData: Partial<LoanApplication>): string {
-  const progress = calculateProgress(currentStep, formData);
-  
-  // Don't show progress for start and confirm steps
-  if (currentStep === 'start' || currentStep === 'confirm') {
-    return '';
-  }
-
-  // Show detailed progress for review step
-  if (currentStep === 'review') {
-    return `📊 Progress: ${progress.percentage}% complete\n` +
-           `✅ ${progress.requiredFieldsCompleted}/${progress.totalRequiredFields} required fields completed\n\n`;
-  }
-
-  // Show step progress for all other steps
-  return `📊 Step ${progress.currentStepNumber} of ${progress.totalSteps}\n` +
-         `✅ Progress: ${progress.percentage}%\n\n`;
-}
+// Removing calculateProgress and getProgressMessage functions
 
 // Questions for each step
 export type StepMessage = string | ((state: ConversationState) => string);
 export const STEP_MESSAGES: Record<FormStep, StepMessage> = {
   start: '👋 Welcome to the Loan Application Bot!\n\nI\'ll help you complete your loan application step by step. You can type:\n• BACK - to go to previous step\n• RESTART - to start over\n• EXIT - to cancel current application\n• HELP - to see instructions\n\nReady to begin? (Reply YES to start)',
   
-  is_referral: (state: ConversationState) => {
-    const progress = getProgressMessage('is_referral', state.form_data);
-    return progress + '🤝 Are you applying for yourself or referring someone else?\n\nChoose from these options:\n1️⃣ Applying for myself\n2️⃣ Referring someone else\n\nReply with the number (1-2)';
-  },
+  is_referral: '🤝 Are you applying for yourself or referring someone else?\n\nChoose from these options:\n1️⃣ Applying for myself\n2️⃣ Referring someone else\n\nReply with the number (1-2)',
 
-  referrer_details: (state: ConversationState) => {
-    const progress = getProgressMessage('referrer_details', state.form_data);
-    return progress + '📝 Great! First, I\'ll need some information about you as the referrer. Then we\'ll collect the applicant\'s details.\n\nReply YES to continue.';
-  },
+  referrer_details: '📝 Great! First, I\'ll need some information about you as the referrer. Then we\'ll collect the applicant\'s details.\n\nReply YES to continue.',
 
-  referrer_name: (state: ConversationState) => {
-    const progress = getProgressMessage('referrer_name', state.form_data);
-    return progress + '📝 What is your full name (as the referrer)?\n\nPlease enter your complete name as it appears on official documents.\nExample: "John Michael Smith"';
-  },
+  referrer_name: '📝 What is your full name (as the referrer)?\n\nPlease enter your complete name as it appears on official documents.\nExample: "John Michael Smith"',
 
-  referrer_phone: (state: ConversationState) => {
-    const progress = getProgressMessage('referrer_phone', state.form_data);
-    return progress + '📱 What is your phone number (as the referrer)?\n\nPlease enter a valid phone number with country code.\nExample: "+919876543210"';
-  },
+  referrer_phone: '📱 What is your phone number (as the referrer)?\n\nPlease enter a valid phone number with country code.\nExample: "+919876543210"',
 
-  referrer_email: (state: ConversationState) => {
-    const progress = getProgressMessage('referrer_email', state.form_data);
-    return progress + '📧 What is your email address (as the referrer)?\n\nWe\'ll use this to keep you updated about the referral.\nExample: "john.smith@email.com"';
-  },
+  referrer_email: '📧 What is your email address (as the referrer)?\n\nWe\'ll use this to keep you updated about the referral.\nExample: "john.smith@email.com"',
 
-  referrer_relationship: (state: ConversationState) => {
-    const progress = getProgressMessage('referrer_relationship', state.form_data);
-    return progress + '👥 What is your relationship with the loan applicant?\n\nChoose from these options:\n1️⃣ Family\n2️⃣ Friend\n3️⃣ Colleague\n4️⃣ Business Associate\n5️⃣ Other\n\nReply with the number (1-5)';
-  },
+  referrer_relationship: '👥 What is your relationship with the loan applicant?\n\nChoose from these options:\n1️⃣ Family\n2️⃣ Friend\n3️⃣ Colleague\n4️⃣ Business Associate\n5️⃣ Other\n\nReply with the number (1-5)',
   
-  full_name: (state: ConversationState) => {
-    const progress = getProgressMessage('full_name', state.form_data);
-    return progress + '📝 What is your full name?\n\nPlease enter your complete name as it appears on official documents.\nExample: "John Michael Smith"';
-  },
+  full_name: '📝 What is your full name?\n\nPlease enter your complete name as it appears on official documents.\nExample: "John Michael Smith"',
   
-  email: (state: ConversationState) => {
-    const progress = getProgressMessage('email', state.form_data);
-    return progress + '📧 What\'s your email address?\n\nWe\'ll use this to send you important updates about your application.\nExample: "john.smith@email.com"';
-  },
+  email: '📧 What\'s your email address?\n\nWe\'ll use this to send you important updates about your application.\nExample: "john.smith@email.com"',
   
-  loan_type: (state: ConversationState) => {
-    const progress = getProgressMessage('loan_type', state.form_data);
-    return progress + '💰 What type of loan are you interested in?\n\nChoose from these options:\n1️⃣ Personal Loan\n2️⃣ Business Loan\n3️⃣ Education Loan\n4️⃣ Home Loan\n\nReply with the number (1-4)';
-  },
+  loan_type: '💰 What type of loan are you interested in?\n\nChoose from these options:\n1️⃣ Personal Loan\n2️⃣ Business Loan\n3️⃣ Education Loan\n4️⃣ Home Loan\n\nReply with the number (1-4)',
   
-  loan_amount: (state: ConversationState) => {
-    const progress = getProgressMessage('loan_amount', state.form_data);
-    return progress + '💵 How much would you like to borrow?\n\nPlease enter the amount in numbers only.\nExample: "50000"';
-  },
+  loan_amount: '💵 How much would you like to borrow?\n\nPlease enter the amount in numbers only.\nExample: "50000"',
   
-  purpose: (state: ConversationState) => {
-    const progress = getProgressMessage('purpose', state.form_data);
-    return progress + '🎯 What\'s the purpose of this loan?\n\nPlease provide a brief description (minimum 10 characters).\nExample: "Home renovation" or "Business expansion"';
-  },
+  purpose: '🎯 What\'s the purpose of this loan?\n\nPlease provide a brief description (minimum 10 characters).\nExample: "Home renovation" or "Business expansion"',
   
-  monthly_income: (state: ConversationState) => {
-    const progress = getProgressMessage('monthly_income', state.form_data);
-    return progress + '💸 What is your monthly income?\n\nPlease enter the amount in numbers only.\nExample: "45000"';
-  },
+  monthly_income: '💸 What is your monthly income?\n\nPlease enter the amount in numbers only.\nExample: "45000"',
   
-  employment_status: (state: ConversationState) => {
-    const progress = getProgressMessage('employment_status', state.form_data);
-    return progress + '👔 What is your employment status?\n\nChoose from these options:\n1️⃣ Salaried\n2️⃣ Self-employed\n3️⃣ Business Owner\n\nReply with the number (1-3) or type SKIP if you prefer not to answer';
-  },
+  employment_status: '👔 What is your employment status?\n\nChoose from these options:\n1️⃣ Salaried\n2️⃣ Self-employed\n3️⃣ Business Owner\n\nReply with the number (1-3) or type SKIP if you prefer not to answer',
   
-  current_employer: (state: ConversationState) => {
-    const progress = getProgressMessage('current_employer', state.form_data);
-    return progress + '🏢 Who is your current employer?\n\nEnter your company name or type SKIP if you prefer not to answer.\nExample: "Tech Solutions Inc."';
-  },
+  current_employer: '🏢 Who is your current employer?\n\nEnter your company name or type SKIP if you prefer not to answer.\nExample: "Tech Solutions Inc."',
   
-  years_employed: (state: ConversationState) => {
-    const progress = getProgressMessage('years_employed', state.form_data);
-    return progress + '⏳ How many years have you been with your current employer?\n\nEnter the number of years or type SKIP if you prefer not to answer.\nExample: "3"';
-  },
+  years_employed: '⏳ How many years have you been with your current employer?\n\nEnter the number of years or type SKIP if you prefer not to answer.\nExample: "3"',
   
-  existing_loans: (state: ConversationState) => {
-    const progress = getProgressMessage('existing_loans', state.form_data);
-    return progress + '📊 Do you have any existing loans?\n\nReply with:\n• YES - if you have existing loans\n• NO - if you don\'t have any loans';
-  },
+  existing_loans: '📊 Do you have any existing loans?\n\nReply with:\n• YES - if you have existing loans\n• NO - if you don\'t have any loans',
   
-  cibil_consent: (state: ConversationState) => {
-    const progress = getProgressMessage('cibil_consent', state.form_data);
-    return progress + '📋 Since you have existing loans, we would like to check your CIBIL score to better assess your application.\n\nDo you consent to us pulling your CIBIL score?\n\nReply with:\n• YES - I consent\n• NO - I do not consent';
-  },
+  cibil_consent: '📋 Since you have existing loans, we would like to check your CIBIL score to better assess your application.\n\nDo you consent to us pulling your CIBIL score?\n\nReply with:\n• YES - I consent\n• NO - I do not consent',
   
-  preferred_tenure: (state: ConversationState) => {
-    const progress = getProgressMessage('preferred_tenure', state.form_data);
-    return progress + '📅 What is your preferred loan tenure?\n\nEnter the number of months.\nExample: "24" for 2 years';
-  },
+  preferred_tenure: '📅 What is your preferred loan tenure?\n\nEnter the number of months.\nExample: "24" for 2 years',
   
-  preferred_communication: (state: ConversationState) => {
-    const progress = getProgressMessage('preferred_communication', state.form_data);
-    return progress + '📱 How would you prefer to be contacted?\n\nChoose from these options:\n1️⃣ WhatsApp\n2️⃣ Email\n3️⃣ Both\n\nReply with the number (1-3) or type SKIP if you prefer not to answer';
-  },
+  preferred_communication: '📱 How would you prefer to be contacted?\n\nChoose from these options:\n1️⃣ WhatsApp\n2️⃣ Email\n3️⃣ Both\n\nReply with the number (1-3) or type SKIP if you prefer not to answer',
   
   review: (state: ConversationState) => {
-    const progress = getProgressMessage('review', state.form_data);
     const summary = formatApplicationSummary(state.form_data);
-    return `${progress}${summary}`;
+    return summary;
   },
   
   confirm: '🎉 Thank you for completing your loan application!\n\nOur team will review your application and contact you soon through your preferred communication channel.\n\nReference Number: {ref_number}\n\nType START if you\'d like to submit another application.',
@@ -505,13 +338,6 @@ function formatApplicationSummary(application: Partial<LoanApplication>): string
   ];
 
   let summary = '📋 Application Summary\n\n';
-  
-  // Add progress bar for all fields
-  const completedFields = allFields.filter(field => 
-    application[field as keyof LoanApplication] !== undefined
-  ).length;
-  const progressBar = '▓'.repeat(completedFields) + '░'.repeat(allFields.length - completedFields);
-  summary += `📊 Progress: ${progressBar} (${Math.round((completedFields / allFields.length) * 100)}%)\n\n`;
   
   // All Information section
   summary += '📝 Application Information:\n';
@@ -1055,9 +881,74 @@ export async function processMessage(phoneNumber: string, message: string): Prom
     switch (state.current_step) {
       case 'start':
         if (userInput.toLowerCase() === 'yes') {
-          nextStep = 'full_name';
+          nextStep = 'is_referral';
         } else {
           responseMessage = 'Please reply with YES to start the application, or type HELP for assistance.';
+        }
+        break;
+        
+      case 'is_referral':
+        if (['1', '2'].includes(userInput)) {
+          formData.is_referral = userInput === '2';
+          nextStep = formData.is_referral ? 'referrer_details' : 'full_name';
+        } else {
+          responseMessage = 'Please select a valid option (1-2).';
+        }
+        break;
+        
+      case 'referrer_details':
+        if (userInput.toLowerCase() === 'yes') {
+          nextStep = 'referrer_name';
+        } else {
+          responseMessage = 'Please reply with YES to continue.';
+        }
+        break;
+        
+      case 'referrer_name':
+        if (validators.fullName(userInput)) {
+          if (!state.referrer_data) state.referrer_data = {};
+          state.referrer_data.full_name = userInput.trim();
+          nextStep = 'referrer_phone';
+        } else {
+          responseMessage = 'Please enter a valid full name.';
+        }
+        break;
+        
+      case 'referrer_phone':
+        if (validators.phoneNumber(userInput)) {
+          if (!state.referrer_data) state.referrer_data = {};
+          state.referrer_data.phone_number = userInput.trim();
+          nextStep = 'referrer_email';
+        } else {
+          responseMessage = 'Please enter a valid phone number.';
+        }
+        break;
+        
+      case 'referrer_email':
+        if (validators.email(userInput)) {
+          if (!state.referrer_data) state.referrer_data = {};
+          state.referrer_data.email = userInput.trim().toLowerCase();
+          nextStep = 'referrer_relationship';
+        } else {
+          responseMessage = 'Please enter a valid email address.';
+        }
+        break;
+        
+      case 'referrer_relationship':
+        if (validators.number(userInput) && Number(userInput) >= 1 && Number(userInput) <= 5) {
+          const relationships = {
+            '1': 'Family',
+            '2': 'Friend',
+            '3': 'Colleague',
+            '4': 'Business Associate',
+            '5': 'Other'
+          } as const;
+          
+          if (!state.referrer_data) state.referrer_data = {};
+          state.referrer_data.relationship_to_applicant = relationships[userInput as keyof typeof relationships];
+          nextStep = 'full_name';
+        } else {
+          responseMessage = 'Please select a valid relationship option (1-5).';
         }
         break;
 
@@ -1274,6 +1165,7 @@ export async function processMessage(phoneNumber: string, message: string): Prom
       await updateConversationState(phoneNumber, {
         current_step: nextStep,
         form_data: formData,
+        referrer_data: state.referrer_data
       });
     }
 
@@ -1286,6 +1178,7 @@ export async function processMessage(phoneNumber: string, message: string): Prom
           ...state,
           current_step: nextStep,
           form_data: formData,
+          referrer_data: state.referrer_data,
           last_updated: new Date().toISOString()
         };
         responseMessage = stepMessage(messageState);
