@@ -170,6 +170,10 @@ export async function createLoanApplication(application: Partial<LoanApplication
     .select()
     .single();
 
+  console.log('loan application data', data);
+  console.log('loan application error', error);
+  console.log('loan application application', application);
+  
   if (error) {
     logger.error('Error creating loan application:', { 
       error,

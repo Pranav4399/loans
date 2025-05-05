@@ -28,20 +28,13 @@ export type FormStep =
   | 'preferred_tenure'
   | 'preferred_communication'
   | 'review'
-  | 'confirm'
-  | 'referrer_name'
-  | 'referrer_phone'
-  | 'referrer_email'
-  | 'referrer_relationship';
+  | 'confirm';
 
-export const FORM_STEPS: Record<Uppercase<FormStep>, FormStep> = {
+// Define main form steps and referral steps separately to keep the flow organized
+// Main application steps
+const MAIN_STEPS = {
   START: 'start',
   IS_REFERRAL: 'is_referral',
-  REFERRER_DETAILS: 'referrer_details',
-  REFERRER_NAME: 'referrer_name',
-  REFERRER_PHONE: 'referrer_phone',
-  REFERRER_EMAIL: 'referrer_email',
-  REFERRER_RELATIONSHIP: 'referrer_relationship',
   FULL_NAME: 'full_name',
   EMAIL: 'email',
   LOAN_TYPE: 'loan_type',
@@ -59,6 +52,21 @@ export const FORM_STEPS: Record<Uppercase<FormStep>, FormStep> = {
   CONFIRM: 'confirm',
 } as const;
 
+// Referral-specific steps
+const REFERRAL_STEPS = {
+  REFERRER_DETAILS: 'referrer_details',
+  REFERRER_NAME: 'referrer_name',
+  REFERRER_PHONE: 'referrer_phone',
+  REFERRER_EMAIL: 'referrer_email',
+  REFERRER_RELATIONSHIP: 'referrer_relationship',
+} as const;
+
+// Combined steps for the application
+export const FORM_STEPS: Record<Uppercase<FormStep>, FormStep> = {
+  ...MAIN_STEPS,
+  ...REFERRAL_STEPS
+} as const;
+
 // Calculate form progress
 function calculateProgress(currentStep: FormStep, formData: Partial<LoanApplication>): {
   currentStepNumber: number;
@@ -67,7 +75,61 @@ function calculateProgress(currentStep: FormStep, formData: Partial<LoanApplicat
   requiredFieldsCompleted: number;
   totalRequiredFields: number;
 } {
-  const steps: FormStep[] = Object.values(FORM_STEPS);
+  // Define the flow based on whether it's a referral or direct application
+  const isReferral = formData.is_referral === true;
+  
+  // Define the steps sequence based on application type
+  let steps: FormStep[];
+  
+  if (isReferral) {
+    // For referrals, include referrer steps in the flow
+    steps = [
+      'start',
+      'is_referral',
+      'referrer_details',
+      'referrer_name',
+      'referrer_phone', 
+      'referrer_email',
+      'referrer_relationship',
+      'full_name',
+      'email',
+      'loan_type',
+      'loan_amount',
+      'purpose',
+      'monthly_income',
+      'employment_status',
+      'current_employer',
+      'years_employed',
+      'existing_loans',
+      'cibil_consent',
+      'preferred_tenure',
+      'preferred_communication',
+      'review',
+      'confirm'
+    ];
+  } else {
+    // For direct applications, exclude referrer steps
+    steps = [
+      'start',
+      'is_referral', 
+      'full_name',
+      'email',
+      'loan_type',
+      'loan_amount',
+      'purpose',
+      'monthly_income',
+      'employment_status',
+      'current_employer',
+      'years_employed',
+      'existing_loans',
+      'cibil_consent', 
+      'preferred_tenure',
+      'preferred_communication',
+      'review',
+      'confirm'
+    ];
+  }
+  
   const currentIndex = steps.indexOf(currentStep);
   
   // Define required fields
@@ -253,8 +315,59 @@ const HELP_MESSAGES: Record<FormStep, string> = {
 };
 
 // Get previous step in the form flow
-function getPreviousStep(currentStep: FormStep): FormStep {
-  const steps: FormStep[] = Object.values(FORM_STEPS);
+function getPreviousStep(currentStep: FormStep, isReferral: boolean = false): FormStep {
+  // Define the flow based on whether it's a referral or direct application
+  let steps: FormStep[];
+  
+  if (isReferral) {
+    // For referrals, include referrer steps in the flow
+    steps = [
+      'start',
+      'is_referral',
+      'referrer_details',
+      'referrer_name',
+      'referrer_phone', 
+      'referrer_email',
+      'referrer_relationship',
+      'full_name',
+      'email',
+      'loan_type',
+      'loan_amount',
+      'purpose',
+      'monthly_income',
+      'employment_status',
+      'current_employer',
+      'years_employed',
+      'existing_loans',
+      'cibil_consent',
+      'preferred_tenure',
+      'preferred_communication',
+      'review',
+      'confirm'
+    ];
+  } else {
+    // For direct applications, exclude referrer steps
+    steps = [
+      'start',
+      'is_referral', 
+      'full_name',
+      'email',
+      'loan_type',
+      'loan_amount',
+      'purpose',
+      'monthly_income',
+      'employment_status',
+      'current_employer',
+      'years_employed',
+      'existing_loans',
+      'cibil_consent', 
+      'preferred_tenure',
+      'preferred_communication',
+      'review',
+      'confirm'
+    ];
+  }
+  
   const currentIndex = steps.indexOf(currentStep);
   return currentIndex > 0 ? steps[currentIndex - 1] : 'start';
 }
@@ -275,7 +388,7 @@ async function handleNavigationCommand(
           handled: true
         };
       }
-      const previousStep = getPreviousStep(state.current_step as FormStep);
+      const previousStep = getPreviousStep(state.current_step as FormStep, state.form_data?.is_referral === true);
       await updateConversationState(phoneNumber, {
         current_step: previousStep,
         form_data: state.form_data // Preserve existing data
@@ -427,6 +540,7 @@ function formatApplicationSummary(application: Partial<LoanApplication>): string
 
 // Get field by number from summary
 function getFieldByNumber(number: number): FormStep | null {
+  // These are the fields shown in the review step
   const fields: FormStep[] = [
     'full_name',
     'email',
@@ -1121,18 +1235,24 @@ export async function processMessage(phoneNumber: string, message: string): Prom
         }
 
         if (message.toLowerCase() === 'no') {
-          // Start over
+          // Start over - reset all state
           const now = new Date().toISOString();
-          await updateConversationState(phoneNumber, {
-            ...state,
+          const newState: ConversationState = {
+            id: state.id, // Preserve the original ID
             current_step: 'start',
             form_data: {},
-            last_updated: now
-          });
+            phone_number: phoneNumber,
+            created_at: now,
+            last_updated: now,
+            is_complete: false,
+            is_referral: false
+          };
+          
+          await updateConversationState(phoneNumber, newState);
 
           const startMessage = STEP_MESSAGES.start;
           const messageToSend = typeof startMessage === 'function'
-            ? startMessage(state)
+            ? startMessage(newState)
             : startMessage;
           
           await sendWhatsAppMessage(phoneNumber, messageToSend);
