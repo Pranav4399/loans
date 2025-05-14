@@ -2,7 +2,7 @@
 document.addEventListener('DOMContentLoaded', () => {
   // DOM Elements
   const leadsTableBody = document.getElementById('leads-table-body');
-  const loadingIndicator = document.getElementById('loading-indicator');
+  const loadingOverlay = document.getElementById('loading-overlay');
   const noResults = document.getElementById('no-results');
   const prevPageBtn = document.getElementById('prev-page');
   const nextPageBtn = document.getElementById('next-page');
@@ -96,6 +96,9 @@ document.addEventListener('DOMContentLoaded', () => {
       totalPages = data.pagination?.pages || 1;
       updatePaginationControls();
       
+      // Clear any existing leads first
+      leadsTableBody.innerHTML = '';
+      
       // Render the leads from the correct data structure
       renderLeads(data.data || []);
     } catch (error) {
@@ -160,15 +163,25 @@ document.addEventListener('DOMContentLoaded', () => {
         day: 'numeric'
       });
       
+      // Get display name from full_name or name field
+      const displayName = lead.full_name || lead.name || '';
+      
+      // Get contact from contact_number or contact field
+      const displayContact = lead.contact_number || lead.contact || '';
+      
+      // Get status class, ensure it's not empty
+      const statusClass = CONFIG.STATUS_CLASSES[lead.status] || '';
+      const statusText = CONFIG.STATUS_TEXT[lead.status] || lead.status || 'Unknown';
+      
       row.innerHTML = `
-        <td>${lead.name || ''}</td>
-        <td>${lead.contact || ''}</td>
+        <td>${displayName}</td>
+        <td>${displayContact}</td>
         <td>${lead.category || ''}</td>
         <td>${lead.subcategory || ''}</td>
         <td>${formattedDate}</td>
         <td>
-          <span class="status-badge ${CONFIG.STATUS_CLASSES[lead.status] || ''}">
-            ${CONFIG.STATUS_TEXT[lead.status] || lead.status}
+          <span class="status-badge ${statusClass}">
+            ${statusText}
           </span>
         </td>
       `;
@@ -202,8 +215,11 @@ document.addEventListener('DOMContentLoaded', () => {
       
       const lead = await response.json();
       
+      // Check if we need to access the data property from the response
+      const leadData = lead.data || lead;
+      
       // Format date
-      const createdDate = new Date(lead.created_at);
+      const createdDate = new Date(leadData.created_at);
       const formattedDate = createdDate.toLocaleDateString('en-US', {
         year: 'numeric',
         month: 'short',
@@ -213,14 +229,24 @@ document.addEventListener('DOMContentLoaded', () => {
       });
       
       // Populate modal
-      detailName.textContent = lead.name || 'N/A';
-      detailContact.textContent = lead.contact || 'N/A';
-      detailCategory.textContent = lead.category || 'N/A';
-      detailSubcategory.textContent = lead.subcategory || 'N/A';
+      detailName.textContent = leadData.full_name || 'N/A';
+      detailContact.textContent = leadData.contact_number || 'N/A';
+      detailCategory.textContent = leadData.category || 'N/A';
+      detailSubcategory.textContent = leadData.subcategory || 'N/A';
       detailDate.textContent = formattedDate;
-      detailStatus.textContent = CONFIG.STATUS_TEXT[lead.status] || lead.status;
+      
+      // Get the status and status class
+      const statusText = CONFIG.STATUS_TEXT[leadData.status] || leadData.status || 'Unknown';
+      const statusClass = CONFIG.STATUS_CLASSES[leadData.status] || '';
+      
+      // Set the status text
+      detailStatus.textContent = statusText;
+      
+      // Reset class and only add status class if it's not empty
       detailStatus.className = 'detail-value';
-      detailStatus.classList.add(CONFIG.STATUS_CLASSES[lead.status] || '');
+      if (statusClass) {
+        detailStatus.classList.add(statusClass);
+      }
       
       hideLoading();
       openModal();
@@ -232,11 +258,19 @@ document.addEventListener('DOMContentLoaded', () => {
   
   // Apply selected filters
   function applyFilters() {
+    // Reset to first page when applying filters
     currentPage = 1;
+    
+    // Get current filter values from select elements
+    const categoryValue = categoryFilter.value;
+    const statusValue = statusFilter.value;
+    const searchValue = searchInput.value.trim();
+    
+    // Update current filters
     currentFilters = {
-      category: categoryFilter.value,
-      status: statusFilter.value,
-      search: searchInput.value.trim()
+      category: categoryValue,
+      status: statusValue,
+      search: searchValue
     };
     
     fetchLeads();
@@ -244,7 +278,10 @@ document.addEventListener('DOMContentLoaded', () => {
   
   // Reset all filters to default
   function resetFilters() {
+    // Reset to first page when clearing filters
     currentPage = 1;
+    
+    // Reset filter values
     currentFilters = {
       category: '',
       status: '',
@@ -295,11 +332,13 @@ document.addEventListener('DOMContentLoaded', () => {
   
   // UI Helpers
   function showLoading() {
-    loadingIndicator.classList.remove('hidden');
+    loadingOverlay.classList.remove('hidden');
+    document.body.style.overflow = 'hidden'; // Prevent scrolling while loading
   }
   
   function hideLoading() {
-    loadingIndicator.classList.add('hidden');
+    loadingOverlay.classList.add('hidden');
+    document.body.style.overflow = ''; // Re-enable scrolling
   }
   
   function showNoResults() {

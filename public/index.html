@@ -9,6 +9,14 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
+  <!-- Full-page loading overlay -->
+  <div id="loading-overlay" class="hidden">
+    <div class="spinner-container">
+      <div class="spinner"></div>
+      <p>Loading...</p>
+    </div>
+  </div>
+
   <header>
     <div class="logo">
       <i class="fas fa-money-bill-wave"></i>
@@ -117,9 +125,6 @@
               <!-- Leads will be populated here by JavaScript -->
             </tbody>
           </table>
-          <div id="loading-indicator" class="hidden">
-            <p>Loading leads data...</p>
-          </div>
           <div id="no-results" class="hidden">
             <i class="fas fa-search"></i>
             <p>No leads found matching your criteria</p>

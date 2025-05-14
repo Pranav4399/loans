@@ -10,6 +10,7 @@ export interface LeadQueryOptions {
   limit?: number;
   status?: string;
   category?: string;
+  search?: string;
 }
 
 /**
@@ -19,7 +20,8 @@ export async function getAllLeads({
   page = 1, 
   limit = 10, 
   status, 
-  category 
+  category,
+  search
 }: LeadQueryOptions): Promise<{ leads: LeadInfo[]; total: number }> {
   try {
     // Calculate pagination
@@ -37,6 +39,16 @@ export async function getAllLeads({
     
     if (category) {
       query = query.eq('category', category);
+    }
+    
+    // Apply search if provided
+    if (search && search.trim() !== '') {
+      const searchTerm = search.trim().toLowerCase();
+      
+      // Use OR conditions to search across multiple fields
+      query = query.or(
+        `full_name.ilike.%${searchTerm}%,contact_number.ilike.%${searchTerm}%,category.ilike.%${searchTerm}%,subcategory.ilike.%${searchTerm}%`
+      );
     }
     
     // Apply pagination

@@ -14,9 +14,15 @@ router.get('/', async (req, res) => {
     const limit = parseInt(req.query.limit as string) || 10;
     const status = req.query.status as string;
     const category = req.query.category as string;
+    const search = req.query.search as string;
     
-    // Get leads from service
-    const result = await getAllLeads({ page, limit, status, category });
+    // Log the search query for debugging
+    if (search) {
+      logger.info('Searching leads with term:', { search });
+    }
+    
+    // Get leads from service with search parameter
+    const result = await getAllLeads({ page, limit, status, category, search });
     
     // Return formatted response
     res.status(200).json({
