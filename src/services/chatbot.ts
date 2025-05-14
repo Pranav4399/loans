@@ -1,209 +1,68 @@
-import { ConversationState, LoanApplication } from '../types/database';
-import { getConversationState, updateConversationState, createLoanApplication } from '../config/supabase';
-import { sendWhatsAppMessage } from '../config/twilio';
-import { StepHandler } from '../services/conversation';
-import { validators } from '../utils/validation';
 import logger from '../config/logger';
+import { createConversationState, createLead, getConversationState, updateConversationState } from '../config/supabase';
+import { sendWhatsAppMessage } from '../config/twilio';
+import { ConversationState, FormStep, StepMessage } from '../types/chat';
+import { CategoryType, SubcategoryType } from '../types/database';
+import { validators } from '../utils/validation';
 
-// Form steps configuration
-export type FormStep = 
-  | 'start'
-  | 'is_referral'
-  | 'referrer_details'
-  | 'referrer_name'
-  | 'referrer_phone'
-  | 'referrer_email'
-  | 'referrer_relationship'
-  | 'full_name'
-  | 'email'
-  | 'loan_type'
-  | 'loan_amount'
-  | 'purpose'
-  | 'monthly_income'
-  | 'employment_status'
-  | 'current_employer'
-  | 'years_employed'
-  | 'existing_loans'
-  | 'cibil_consent'
-  | 'preferred_tenure'
-  | 'preferred_communication'
-  | 'review'
-  | 'confirm';
+// Category constants
+export const CATEGORIES: Record<string, CategoryType> = {
+  '1': 'Loans',
+  '2': 'Insurance',
+  '3': 'Mutual Funds',
+};
 
-// Define main form steps and referral steps separately to keep the flow organized
-// Main application steps
-const MAIN_STEPS = {
-  START: 'start',
-  IS_REFERRAL: 'is_referral',
-  FULL_NAME: 'full_name',
-  EMAIL: 'email',
-  LOAN_TYPE: 'loan_type',
-  LOAN_AMOUNT: 'loan_amount',
-  PURPOSE: 'purpose',
-  MONTHLY_INCOME: 'monthly_income',
-  EMPLOYMENT_STATUS: 'employment_status',
-  CURRENT_EMPLOYER: 'current_employer',
-  YEARS_EMPLOYED: 'years_employed',
-  EXISTING_LOANS: 'existing_loans',
-  CIBIL_CONSENT: 'cibil_consent',
-  PREFERRED_TENURE: 'preferred_tenure',
-  PREFERRED_COMMUNICATION: 'preferred_communication',
-  REVIEW: 'review',
-  CONFIRM: 'confirm',
-} as const;
+// Subcategory constants
+export const LOAN_SUBCATEGORIES: Record<string, SubcategoryType> = {
+  '1': 'Personal Loan',
+  '2': 'Business Loan',
+  '3': 'Home Loan',
+  '4': 'Loan Against Property',
+  '5': 'Car Loan',
+  '6': 'Working Capital',
+};
 
-// Referral-specific steps
-const REFERRAL_STEPS = {
-  REFERRER_DETAILS: 'referrer_details',
-  REFERRER_NAME: 'referrer_name',
-  REFERRER_PHONE: 'referrer_phone',
-  REFERRER_EMAIL: 'referrer_email',
-  REFERRER_RELATIONSHIP: 'referrer_relationship',
-} as const;
+export const INSURANCE_SUBCATEGORIES: Record<string, SubcategoryType> = {
+  '1': 'Health Insurance',
+  '2': 'Motor Vehicle Insurance',
+  '3': 'Life Insurance',
+  '4': 'Property Insurance',
+};
 
-// Combined steps for the application
-export const FORM_STEPS: Record<Uppercase<FormStep>, FormStep> = {
-  ...MAIN_STEPS,
-  ...REFERRAL_STEPS
-} as const;
-
-// Format progress message
-// Removing calculateProgress and getProgressMessage functions
+export const MUTUAL_FUND_SUBCATEGORIES: Record<string, SubcategoryType> = {
+  '1': 'General Inquiry',
+};
 
 // Questions for each step
-export type StepMessage = string | ((state: ConversationState) => string);
 export const STEP_MESSAGES: Record<FormStep, StepMessage> = {
-  start: '👋 Welcome to the Loan Application Bot!\n\nI\'ll help you complete your loan application step by step. You can type:\n• BACK - to go to previous step\n• RESTART - to start over\n• EXIT - to cancel current application\n• HELP - to see instructions\n\nReady to begin? (Reply YES to start)',
+  start: '👋 Welcome to the Financial Services Bot!\n\nI\'ll help you inquire about our various financial products. You can type:\n• RESTART - to start over\n• EXIT - to cancel current inquiry\n• HELP - to see instructions\n\nReady to begin? (Reply YES to start)',
   
-  is_referral: '🤝 Are you applying for yourself or referring someone else?\n\nChoose from these options:\n1️⃣ Applying for myself\n2️⃣ Referring someone else\n\nReply with the number (1-2)',
+  category: '💰 What financial product are you interested in?\n\nChoose from these options:\n1️⃣ Loans\n2️⃣ Insurance\n3️⃣ Mutual Funds\n\nReply with the number (1-3)',
 
-  referrer_details: '📝 Great! First, I\'ll need some information about you as the referrer. Then we\'ll collect the applicant\'s details.\n\nReply YES to continue.',
+  loan_subcategory: '🏦 What type of loan are you interested in?\n\nChoose from these options:\n1️⃣ Personal Loan\n2️⃣ Business Loan\n3️⃣ Home Loan\n4️⃣ Loan Against Property\n5️⃣ Car Loan\n6️⃣ Working Capital\n\nReply with the number (1-6)',
 
-  referrer_name: '📝 What is your full name (as the referrer)?\n\nPlease enter your complete name as it appears on official documents.\nExample: "John Michael Smith"',
+  insurance_subcategory: '🛡️ What type of insurance are you interested in?\n\nChoose from these options:\n1️⃣ Health Insurance\n2️⃣ Motor Vehicle Insurance\n3️⃣ Life Insurance\n4️⃣ Property Insurance\n\nReply with the number (1-4)',
 
-  referrer_phone: '📱 What is your phone number (as the referrer)?\n\nPlease enter a valid phone number with country code.\nExample: "+919876543210"',
-
-  referrer_email: '📧 What is your email address (as the referrer)?\n\nWe\'ll use this to keep you updated about the referral.\nExample: "john.smith@email.com"',
-
-  referrer_relationship: '👥 What is your relationship with the loan applicant?\n\nChoose from these options:\n1️⃣ Family\n2️⃣ Friend\n3️⃣ Colleague\n4️⃣ Business Associate\n5️⃣ Other\n\nReply with the number (1-5)',
+  mutual_fund_subcategory: '📈 You\'ve selected Mutual Funds. Let\'s collect some information to help you better.',
   
   full_name: '📝 What is your full name?\n\nPlease enter your complete name as it appears on official documents.\nExample: "John Michael Smith"',
   
-  email: '📧 What\'s your email address?\n\nWe\'ll use this to send you important updates about your application.\nExample: "john.smith@email.com"',
+  contact_number: '📱 What is your contact number?\n\nPlease enter a valid phone number with country code.\nExample: "+919876543210"',
   
-  loan_type: '💰 What type of loan are you interested in?\n\nChoose from these options:\n1️⃣ Personal Loan\n2️⃣ Business Loan\n3️⃣ Education Loan\n4️⃣ Home Loan\n\nReply with the number (1-4)',
-  
-  loan_amount: '💵 How much would you like to borrow?\n\nPlease enter the amount in numbers only.\nExample: "50000"',
-  
-  purpose: '🎯 What\'s the purpose of this loan?\n\nPlease provide a brief description (minimum 10 characters).\nExample: "Home renovation" or "Business expansion"',
-  
-  monthly_income: '💸 What is your monthly income?\n\nPlease enter the amount in numbers only.\nExample: "45000"',
-  
-  employment_status: '👔 What is your employment status?\n\nChoose from these options:\n1️⃣ Salaried\n2️⃣ Self-employed\n3️⃣ Business Owner\n\nReply with the number (1-3) or type SKIP if you prefer not to answer',
-  
-  current_employer: '🏢 Who is your current employer?\n\nEnter your company name or type SKIP if you prefer not to answer.\nExample: "Tech Solutions Inc."',
-  
-  years_employed: '⏳ How many years have you been with your current employer?\n\nEnter the number of years or type SKIP if you prefer not to answer.\nExample: "3"',
-  
-  existing_loans: '📊 Do you have any existing loans?\n\nReply with:\n• YES - if you have existing loans\n• NO - if you don\'t have any loans',
-  
-  cibil_consent: '📋 Since you have existing loans, we would like to check your CIBIL score to better assess your application.\n\nDo you consent to us pulling your CIBIL score?\n\nReply with:\n• YES - I consent\n• NO - I do not consent',
-  
-  preferred_tenure: '📅 What is your preferred loan tenure?\n\nEnter the number of months.\nExample: "24" for 2 years',
-  
-  preferred_communication: '📱 How would you prefer to be contacted?\n\nChoose from these options:\n1️⃣ WhatsApp\n2️⃣ Email\n3️⃣ Both\n\nReply with the number (1-3) or type SKIP if you prefer not to answer',
-  
-  review: (state: ConversationState) => {
-    const summary = formatApplicationSummary(state.form_data);
-    return summary;
-  },
-  
-  confirm: '🎉 Thank you for completing your loan application!\n\nOur team will review your application and contact you soon through your preferred communication channel.\n\nReference Number: {ref_number}\n\nType START if you\'d like to submit another application.',
+  confirm: '🎉 Thank you for your interest!\n\nA representative will contact you shortly at your provided contact number.\n\n[Click here](https://example.com/products) to learn more about our offerings.\n\nType START if you\'d like to inquire about another product.',
 };
 
-// Help message for each step
+// Help messages for each step
 const HELP_MESSAGES: Record<FormStep, string> = {
-  start: 'Type YES to start your loan application, or RESTART to begin again.',
+  start: 'Type YES to start exploring our financial products, or RESTART to begin again.',
+  category: 'Enter a number (1-3) to select the financial product category you\'re interested in.',
+  loan_subcategory: 'Enter a number (1-6) to select the specific loan type you\'re interested in.',
+  insurance_subcategory: 'Enter a number (1-4) to select the specific insurance type you\'re interested in.',
+  mutual_fund_subcategory: 'Mutual funds are investment products managed by professionals. You just need to provide your contact information to learn more.',
   full_name: 'Please enter your full name as it appears on official documents. You can use letters and spaces.',
-  email: 'Enter a valid email address that you regularly check. We\'ll use this for important updates.',
-  loan_type: 'Enter a number (1-4) to select your loan type. Each option has different terms and requirements.',
-  loan_amount: 'Enter the loan amount you need in numbers only. Don\'t include currency symbols or commas.',
-  purpose: 'Briefly describe why you need this loan. Be specific but concise (at least 10 characters).',
-  monthly_income: 'Enter your monthly income in numbers only. This helps us assess loan affordability.',
-  employment_status: 'Enter a number (1-3) to select your employment status:\n1. Salaried\n2. Self-employed\n3. Business Owner',
-  current_employer: 'Enter your employer\'s name. This information helps with loan assessment.',
-  years_employed: 'Enter the number of years you\'ve been employed. Use whole numbers.',
-  existing_loans: 'Type YES if you have other loans, NO if you don\'t. This helps us assess your current financial commitments.',
-  cibil_consent: 'Please confirm if you consent to us checking your CIBIL score. Type YES to give consent or NO to deny consent.',
-  preferred_tenure: 'Enter your preferred loan duration in months (e.g., 12 for 1 year, 24 for 2 years, 36 for 3 years).',
-  preferred_communication: 'Enter a number (1-3) to choose how we contact you:\n1. WhatsApp\n2. Email\n3. Both',
-  review: 'Review your information and type:\n• YES to submit\n• NO to restart\n• EDIT followed by the field number to make changes',
-  confirm: 'Your application is complete! Type START if you want to submit another application.',
-  is_referral: 'Enter 1 if you\'re applying for yourself, or 2 if you\'re referring someone else for a loan.',
-  referrer_details: 'Type YES to proceed with entering your details as the referrer.',
-  referrer_name: 'Please enter your full name as it appears on official documents. You can use letters and spaces.',
-  referrer_phone: 'Enter your phone number with country code. This will be used to contact you about the referral.',
-  referrer_email: 'Enter a valid email address. We\'ll use this to keep you updated about the referral.',
-  referrer_relationship: 'Enter a number (1-5) to select your relationship with the applicant:\n1. Family\n2. Friend\n3. Colleague\n4. Business Associate\n5. Other',
+  contact_number: 'Enter a valid phone number with country code. This will be used to contact you about your inquiry.',
+  confirm: 'Your inquiry has been submitted. You can type START to begin a new inquiry about another product.',
 };
-
-// Get previous step in the form flow
-function getPreviousStep(currentStep: FormStep, isReferral: boolean = false): FormStep {
-  // Define the flow based on whether it's a referral or direct application
-  let steps: FormStep[];
-  
-  if (isReferral) {
-    // For referrals, include referrer steps in the flow
-    steps = [
-      'start',
-      'is_referral',
-      'referrer_details',
-      'referrer_name',
-      'referrer_phone', 
-      'referrer_email',
-      'referrer_relationship',
-      'full_name',
-      'email',
-      'loan_type',
-      'loan_amount',
-      'purpose',
-      'monthly_income',
-      'employment_status',
-      'current_employer',
-      'years_employed',
-      'existing_loans',
-      'cibil_consent',
-      'preferred_tenure',
-      'preferred_communication',
-      'review',
-      'confirm'
-    ];
-  } else {
-    // For direct applications, exclude referrer steps
-    steps = [
-      'start',
-      'is_referral', 
-      'full_name',
-      'email',
-      'loan_type',
-      'loan_amount',
-      'purpose',
-      'monthly_income',
-      'employment_status',
-      'current_employer',
-      'years_employed',
-      'existing_loans',
-      'cibil_consent', 
-      'preferred_tenure',
-      'preferred_communication',
-      'review',
-      'confirm'
-    ];
-  }
-  
-  const currentIndex = steps.indexOf(currentStep);
-  return currentIndex > 0 ? steps[currentIndex - 1] : 'start';
-}
 
 // Handle navigation commands
 async function handleNavigationCommand(
@@ -214,52 +73,36 @@ async function handleNavigationCommand(
   const normalizedCommand = command.toLowerCase().trim();
 
   switch (normalizedCommand) {
-    case 'back':
-      if (state.current_step === 'start') {
-        return {
-          nextMessage: 'You\'re already at the start. Type YES to begin the application.',
-          handled: true
-        };
-      }
-      const previousStep = getPreviousStep(state.current_step as FormStep, state.form_data?.is_referral === true);
-      await updateConversationState(phoneNumber, {
-        current_step: previousStep,
-        form_data: state.form_data // Preserve existing data
-      });
-
-      // Get the message for the previous step
-      const prevStepMessage = STEP_MESSAGES[previousStep];
-      const prevMessage = typeof prevStepMessage === 'function' 
-        ? prevStepMessage(state) 
-        : prevStepMessage;
-
-      return {
-        nextMessage: prevMessage,
-        handled: true
-      };
-
     case 'restart':
-      const newState: Partial<ConversationState> = {
+      // Create new conversation state
+      await updateConversationState({
+        phone_number: phoneNumber,
         current_step: 'start',
         form_data: {},
         is_complete: false
-      };
-      await updateConversationState(phoneNumber, newState);
+      });
 
       // Get the start message
-      const startMessage = STEP_MESSAGES.start;
-      const message = typeof startMessage === 'function'
-        ? startMessage({ ...state, ...newState })
-        : startMessage;
-
       return {
-        nextMessage: message,
+        nextMessage: STEP_MESSAGES.start,
         handled: true
       };
 
     case 'help':
       return {
-        nextMessage: HELP_MESSAGES[state.current_step as FormStep],
+        nextMessage: HELP_MESSAGES[state.current_step],
+        handled: true
+      };
+
+    case 'exit':
+      // Mark conversation as complete
+      await updateConversationState({
+        phone_number: phoneNumber,
+        is_complete: true
+      });
+      
+      return {
+        nextMessage: 'Your inquiry has been cancelled. Type START anytime to begin again.',
         handled: true
       };
 
@@ -271,155 +114,43 @@ async function handleNavigationCommand(
   }
 }
 
-// Format field value for display
-function formatFieldValue(field: keyof LoanApplication, value: any): string {
-  if (value === undefined || value === null) {
-    return 'Not provided';
-  }
-
-  switch (field) {
-    case 'loan_amount':
-    case 'monthly_income':
-      return `$${Number(value).toLocaleString()}`;
-    case 'existing_loans':
-      return value ? 'Yes' : 'No';
-    case 'years_employed':
-      return `${value} year${Number(value) === 1 ? '' : 's'}`;
-    case 'preferred_tenure':
-      return `${value} month${Number(value) === 1 ? '' : 's'}`;
-    default:
-      return String(value);
-  }
-}
-
-// Get field label for display
-function getFieldLabel(field: keyof LoanApplication): string {
-  const labels: Record<keyof LoanApplication, string> = {
-    full_name: 'Full Name',
-    email: 'Email Address',
-    phone_number: 'Phone Number',
-    loan_type: 'Type of Loan',
-    loan_amount: 'Loan Amount',
-    purpose: 'Purpose',
-    monthly_income: 'Monthly Income',
-    employment_status: 'Employment Status',
-    current_employer: 'Current Employer',
-    years_employed: 'Years Employed',
-    existing_loans: 'Existing Loans',
-    cibil_consent: 'CIBIL Score Consent',
-    preferred_tenure: 'Preferred Tenure',
-    preferred_communication: 'Preferred Communication',
-    status: 'Application Status',
-    created_at: 'Created At',
-    last_updated: 'Last Updated',
-    id: 'Application ID',
-    is_referral: 'Is Referral',
-    referrer_id: 'Referrer ID'
-  };
-  return labels[field];
-}
-
-// Format application summary with field numbers for editing
-function formatApplicationSummary(application: Partial<LoanApplication>): string {
-  // Combine all fields into one section
-  const allFields = [
-    'full_name',
-    'email',
-    'loan_type',
-    'loan_amount',
-    'purpose',
-    'monthly_income',
-    'employment_status',
-    'current_employer',
-    'years_employed',
-    'existing_loans',
-    'preferred_tenure',
-    'preferred_communication'
-  ];
-
-  let summary = '📋 Application Summary\n\n';
-  
-  // All Information section
-  summary += '📝 Application Information:\n';
-  summary += '━━━━━━━━━━━━━━━━━━━━━\n';
-  allFields.forEach((field, index) => {
-    const value = application[field as keyof LoanApplication];
-    const label = getFieldLabel(field as keyof LoanApplication);
-    const formattedValue = formatFieldValue(field as keyof LoanApplication, value);
-    const status = value !== undefined ? '✅' : '❌';
-    summary += `${index + 1}. ${label}\n   ${status} ${formattedValue}\n`;
-  });
-
-  // Instructions section
-  summary += '\n📝 Review Instructions:\n';
-  summary += '━━━━━━━━━━━━━━━━━━━━━\n';
-  summary += '1. Review all information carefully\n';
-  summary += '2. To edit any field:\n';
-  summary += '   • Type EDIT followed by the field number\n';
-  summary += '   • Example: "EDIT 3" to change loan type\n';
-  summary += '3. When you\'re ready:\n';
-  summary += '   ✅ Type YES to submit your application\n';
-  summary += '   ❌ Type NO to start over\n';
-
-  return summary;
-}
-
-// Get field by number from summary
-function getFieldByNumber(number: number): FormStep | null {
-  // These are the fields shown in the review step
-  const fields: FormStep[] = [
-    'full_name',
-    'email',
-    'loan_type',
-    'loan_amount',
-    'purpose',
-    'monthly_income',
-    'employment_status',
-    'current_employer',
-    'years_employed',
-    'existing_loans',
-    'preferred_tenure',
-    'preferred_communication'
-  ];
-  
-  return fields[number - 1] || null;
-}
-
-// Handle edit command in review step
-async function handleEditCommand(
-  command: string,
-  state: ConversationState
-): Promise<{ nextStep: FormStep; message: string } | null> {
-  const match = command.match(/^edit\s+(\d+)$/i);
-  if (!match) return null;
-
-  const fieldNumber = parseInt(match[1], 10);
-  const field = getFieldByNumber(fieldNumber);
-  
-  if (!field) {
-    return {
-      nextStep: 'review',
-      message: 'Invalid field number. Please check the summary and try again.'
-    };
-  }
-
-  const stepMessage = STEP_MESSAGES[field];
-  const message = typeof stepMessage === 'function' 
-    ? stepMessage(state) 
-    : stepMessage;
-
-  return {
-    nextStep: field,
-    message
-  };
-}
-
 // Format error message with examples and suggestions
 function formatErrorMessage(field: FormStep, error: string): string {
   const errorMessages: Record<FormStep, { examples: string[]; suggestions: string[] }> = {
     start: {
       examples: ['YES'],
       suggestions: ['Type YES in any case (yes, Yes, YES)']
+    },
+    category: {
+      examples: ['1', '2', '3'],
+      suggestions: [
+        'Enter only the number (1-3)',
+        'Choose from the options shown',
+        'Don\'t type the category name, just the number'
+      ]
+    },
+    loan_subcategory: {
+      examples: ['1', '2', '3', '4', '5', '6'],
+      suggestions: [
+        'Enter only the number (1-6)',
+        'Choose from the options shown',
+        'Don\'t type the loan name, just the number'
+      ]
+    },
+    insurance_subcategory: {
+      examples: ['1', '2', '3', '4'],
+      suggestions: [
+        'Enter only the number (1-4)',
+        'Choose from the options shown',
+        'Don\'t type the insurance name, just the number'
+      ]
+    },
+    mutual_fund_subcategory: {
+      examples: ['1'],
+      suggestions: [
+        'This is just an informational step',
+        'Type anything to continue'
+      ]
     },
     full_name: {
       examples: ['John Smith', 'Mary Jane Wilson'],
@@ -429,157 +160,17 @@ function formatErrorMessage(field: FormStep, error: string): string {
         'Avoid special characters or numbers'
       ]
     },
-    email: {
-      examples: ['john.smith@email.com', 'mary.jane@company.co.uk'],
+    contact_number: {
+      examples: ['+919876543210', '+14155552671'],
       suggestions: [
-        'Include @ symbol and domain',
-        'Check for typos',
-        'Avoid spaces in email address'
-      ]
-    },
-    loan_type: {
-      examples: ['1', '2', '3', '4'],
-      suggestions: [
-        'Enter only the number (1-4)',
-        'Choose from the options shown',
-        'Don\'t type the loan name, just the number'
-      ]
-    },
-    loan_amount: {
-      examples: ['50000', '100000'],
-      suggestions: [
-        'Enter numbers only',
-        'Don\'t include currency symbols or commas',
-        'Must be greater than 0'
-      ]
-    },
-    purpose: {
-      examples: ['Home renovation project', 'Starting an online business'],
-      suggestions: [
-        'Be specific about how you\'ll use the loan',
-        'Provide at least 10 characters',
-        'Avoid vague descriptions'
-      ]
-    },
-    monthly_income: {
-      examples: ['45000', '75000'],
-      suggestions: [
-        'Enter numbers only',
-        'Don\'t include currency symbols or commas',
-        'Must be greater than 0'
-      ]
-    },
-    employment_status: {
-      examples: ['1', '2', '3', 'SKIP'],
-      suggestions: [
-        'Enter only the number (1-3)',
-        'Type SKIP to leave this optional',
-        'Don\'t type the status name, just the number'
-      ]
-    },
-    current_employer: {
-      examples: ['Tech Solutions Inc', 'SKIP'],
-      suggestions: [
-        'Enter company\'s legal name',
-        'Type SKIP to leave this optional',
-        'Avoid abbreviations unless official'
-      ]
-    },
-    years_employed: {
-      examples: ['3', '5', 'SKIP'],
-      suggestions: [
-        'Enter whole numbers only',
-        'Type SKIP to leave this optional',
-        'Must be greater than 0'
-      ]
-    },
-    existing_loans: {
-      examples: ['YES', 'NO', 'SKIP'],
-      suggestions: [
-        'Type YES, NO, or SKIP only',
-        'Answer applies to all types of loans',
-        'Case doesn\'t matter'
-      ]
-    },
-    cibil_consent: {
-      examples: ['YES', 'NO'],
-      suggestions: [
-        'Type YES to consent',
-        'Type NO to deny consent'
-      ]
-    },
-    preferred_tenure: {
-      examples: ['12', '24', '36', 'SKIP'],
-      suggestions: [
-        'Enter number of months',
-        'Type SKIP if unsure',
-        'Must be greater than 0'
-      ]
-    },
-    preferred_communication: {
-      examples: ['1', '2', '3', 'SKIP'],
-      suggestions: [
-        'Enter only the number (1-3)',
-        'Type SKIP to leave this optional',
-        'Don\'t type the option name, just the number'
-      ]
-    },
-    review: {
-      examples: ['YES', 'NO', 'EDIT 3'],
-      suggestions: [
-        'Type YES to submit',
-        'Type NO to start over',
-        'Type EDIT followed by field number to modify'
+        'Include the country code with + symbol',
+        'Don\'t include spaces or dashes',
+        'Use only numbers after the country code'
       ]
     },
     confirm: {
       examples: ['START'],
-      suggestions: ['Type START to begin a new application']
-    },
-    is_referral: {
-      examples: ['YES', 'NO'],
-      suggestions: [
-        'Type YES if you were referred by someone',
-        'Type NO if you are applying on your own'
-      ]
-    },
-    referrer_details: {
-      examples: ['YES', 'NO'],
-      suggestions: [
-        'Type YES if you were referred by someone',
-        'Type NO if you are applying on your own'
-      ]
-    },
-    referrer_name: {
-      examples: ['John Smith', 'Mary Jane Wilson'],
-      suggestions: [
-        'Enter the full name of the person who referred you',
-        'Use the name as it appears on official documents'
-      ]
-    },
-    referrer_phone: {
-      examples: ['+1234567890', 'SKIP'],
-      suggestions: [
-        'Enter the phone number of the person who referred you',
-        'Use the number as it appears on official documents',
-        'Type SKIP if you don\'t want to provide this information'
-      ]
-    },
-    referrer_email: {
-      examples: ['john.smith@email.com', 'mary.jane@company.co.uk'],
-      suggestions: [
-        'Enter the email address of the person who referred you',
-        'Use the address as it appears on official documents',
-        'Type SKIP if you don\'t want to provide this information'
-      ]
-    },
-    referrer_relationship: {
-      examples: ['1', '2', '3', '4', '5'],
-      suggestions: [
-        'Enter the number of the relationship you have with the referrer',
-        'Choose from the options shown',
-        'Don\'t type the option name, just the number'
-      ]
+      suggestions: ['Type START to begin a new inquiry']
     }
   };
 
@@ -601,270 +192,23 @@ function formatErrorMessage(field: FormStep, error: string): string {
   return message;
 }
 
-// Update the stepHandlers to return to review after editing
-const stepHandlers: Record<FormStep, StepHandler> = {
-  start: {
-    validate: (input: string): boolean | string => {
-      const isValid = input.toLowerCase() === 'yes';
-      return isValid || formatErrorMessage('start', 'Please reply with YES to start the application.');
-    },
-    process: () => ({}),
-    getNextStep: () => 'full_name',
-  },
-  full_name: {
-    validate: (input: string): boolean | string => {
-      const isValid = validators.fullName(input);
-      return isValid || formatErrorMessage('full_name', 
-        'Please enter your full name with at least first and last name, using only letters and spaces. Each name should be at least 2 characters long.');
-    },
-    process: (input: string) => ({ full_name: input.trim() }),
-    getNextStep: () => 'review',
-  },
-  email: {
-    validate: (input: string): boolean | string => {
-      const isValid = validators.email(input);
-      return isValid || formatErrorMessage('email', 
-        'Please enter a valid email address in the format: username@domain.com');
-    },
-    process: (input: string) => ({ email: input.trim().toLowerCase() }),
-    getNextStep: () => 'review',
-  },
-  loan_type: {
-    validate: (input: string): boolean | string => {
-      const isValid = validators.loanType(input);
-      return isValid || formatErrorMessage('loan_type', 
-        'Please select a valid loan type by entering a number from 1 to 4.');
-    },
-    process: (input: string) => {
-      const options = { '1': 'Personal', '2': 'Business', '3': 'Education', '4': 'Home' } as const;
-      return { loan_type: options[input as keyof typeof options] };
-    },
-    getNextStep: () => 'review',
-  },
-  loan_amount: {
-    validate: (input: string): boolean | string => {
-      const isValid = validators.loanAmount(input);
-      return isValid || formatErrorMessage('loan_amount', 
-        'Please enter a valid loan amount between ₹10,000 and ₹1,00,00,000 using only numbers.');
-    },
-    process: (input: string) => ({ loan_amount: Number(input) }),
-    getNextStep: () => 'review',
-  },
-  purpose: {
-    validate: (input: string): boolean | string => {
-      const isValid = validators.purpose(input);
-      return isValid || formatErrorMessage('purpose', 
-        'Please provide a clear purpose between 10 and 100 characters, using only letters, numbers, and basic punctuation.');
-    },
-    process: (input: string) => ({ purpose: input.trim() }),
-    getNextStep: () => 'review',
-  },
-  monthly_income: {
-    validate: (input: string): boolean | string => {
-      const isValid = validators.monthlyIncome(input);
-      return isValid || formatErrorMessage('monthly_income', 
-        'Please enter your monthly income between ₹10,000 and ₹10,00,000 using only numbers.');
-    },
-    process: (input: string) => ({ monthly_income: Number(input) }),
-    getNextStep: () => 'review',
-  },
-  employment_status: {
-    validate: (input: string): boolean | string => {
-      const isValid = validators.employmentStatus(input);
-      return isValid || formatErrorMessage('employment_status', 
-        'Please select your employment status by entering a number from 1 to 3.');
-    },
-    process: (input: string) => {
-      const options = { '1': 'Salaried', '2': 'Self-employed', '3': 'Business Owner' } as const;
-      return { employment_status: options[input as keyof typeof options] };
-    },
-    getNextStep: () => 'review',
-  },
-  current_employer: {
-    validate: (input: string): boolean | string => {
-      const isValid = validators.currentEmployer(input);
-      return isValid || formatErrorMessage('current_employer', 
-        'Please enter your employer\'s name using 2-50 characters, with only letters, numbers, spaces, and basic punctuation.');
-    },
-    process: (input: string) => ({ current_employer: input.trim() }),
-    getNextStep: () => 'review',
-  },
-  years_employed: {
-    validate: (input: string): boolean | string => {
-      const isValid = validators.yearsEmployed(input);
-      return isValid || formatErrorMessage('years_employed', 
-        'Please enter a valid number of years between 1 and 50.');
-    },
-    process: (input: string) => ({ years_employed: Number(input) }),
-    getNextStep: () => 'review',
-  },
-  existing_loans: {
-    validate: (input: string): boolean | string => {
-      const isValid = validators.yesNo(input);
-      return isValid || formatErrorMessage('existing_loans', 
-        'Please reply with YES or NO regarding your existing loans.');
-    },
-    process: (input: string) => ({ existing_loans: input.toLowerCase() === 'yes' }),
-    getNextStep: (data: Partial<LoanApplication>) => data.existing_loans ? 'cibil_consent' : 'preferred_tenure',
-  },
-  cibil_consent: {
-    validate: (input: string): boolean | string => {
-      const isValid = validators.yesNo(input);
-      return isValid || formatErrorMessage('cibil_consent', 
-        'Please reply with YES or NO regarding your consent for CIBIL score check.');
-    },
-    process: (input: string) => ({ cibil_consent: input.toLowerCase() === 'yes' }),
-    getNextStep: () => 'review',
-  },
-  preferred_tenure: {
-    validate: (input: string): boolean | string => {
-      const isValid = validators.preferredTenure(input);
-      return isValid || formatErrorMessage('preferred_tenure', 
-        'Please enter a valid loan tenure between 3 months and 30 years (360 months).');
-    },
-    process: (input: string) => ({ preferred_tenure: Number(input) }),
-    getNextStep: () => 'review',
-  },
-  preferred_communication: {
-    validate: (input: string): boolean | string => {
-      const isValid = validators.communicationPreference(input);
-      return isValid || formatErrorMessage('preferred_communication', 
-        'Please select your preferred communication method by entering a number from 1 to 3.');
-    },
-    process: (input: string) => {
-      const options = { '1': 'WhatsApp', '2': 'Email', '3': 'Both' } as const;
-      return { preferred_communication: options[input as keyof typeof options] };
-    },
-    getNextStep: () => 'review',
-  },
-  review: {
-    validate: (input: string): boolean | string => {
-      const normalized = input.toLowerCase();
-      const isValid = normalized === 'yes' || normalized === 'no' || normalized.startsWith('edit');
-      return isValid || formatErrorMessage('review', 
-        'Please type YES to submit, NO to start over, or EDIT followed by the field number to modify a field.');
-    },
-    process: () => ({}),
-    getNextStep: () => 'confirm',
-  },
-  confirm: {
-    validate: (): boolean => true,
-    process: () => ({}),
-    getNextStep: () => 'start',
-  },
-  is_referral: {
-    validate: (input: string): boolean | string => {
-      const isValid = validators.yesNo(input);
-      return isValid || formatErrorMessage('is_referral', 
-        'Please reply with YES or NO regarding your referral status.');
-    },
-    process: (input: string) => ({ is_referral: input.toLowerCase() === 'yes' }),
-    getNextStep: () => 'referrer_details',
-  },
-  referrer_details: {
-    validate: (input: string): boolean | string => {
-      const isValid = validators.yesNo(input);
-      return isValid || formatErrorMessage('referrer_details', 
-        'Please reply with YES or NO regarding your referral status.');
-    },
-    process: (input: string) => ({ is_referral: input.toLowerCase() === 'yes' }),
-    getNextStep: () => 'referrer_details',
-  },
-  referrer_name: {
-    validate: (input: string): boolean | string => {
-      const isValid = validators.fullName(input);
-      return isValid || formatErrorMessage('referrer_name', 
-        'Please enter your full name as it appears on official documents.');
-    },
-    process: (input: string) => ({ referrer_data: { full_name: input.trim() } }),
-    getNextStep: () => 'referrer_phone',
-  },
-  referrer_phone: {
-    validate: (input: string): boolean | string => {
-      const isValid = validators.phoneNumber(input);
-      return isValid || formatErrorMessage('referrer_phone', 
-        'Please enter a valid phone number with country code.');
-    },
-    process: (input: string) => ({ referrer_data: { phone_number: input.trim() } }),
-    getNextStep: () => 'referrer_email',
-  },
-  referrer_email: {
-    validate: (input: string): boolean | string => {
-      const isValid = validators.email(input);
-      return isValid || formatErrorMessage('referrer_email', 
-        'Please enter a valid email address.');
-    },
-    process: (input: string) => ({ referrer_data: { email: input.trim().toLowerCase() } }),
-    getNextStep: () => 'referrer_relationship',
-  },
-  referrer_relationship: {
-    validate: (input: string): boolean | string => {
-      const isValid = validators.number(input) && Number(input) >= 1 && Number(input) <= 5;
-      return isValid || formatErrorMessage('referrer_relationship', 
-        'Please select your relationship with the applicant by entering a number from 1 to 5.');
-    },
-    process: (input: string) => {
-      const relationships = {
-        '1': 'Family',
-        '2': 'Friend',
-        '3': 'Colleague',
-        '4': 'Business Associate',
-        '5': 'Other'
-      } as const;
-      return { 
-        referrer_data: { 
-          relationship_to_applicant: relationships[input as keyof typeof relationships] 
-        } 
-      };
-    },
-    getNextStep: () => 'referrer_name',
-  },
-  
-};
-
 // Process user response
 export async function processMessage(phoneNumber: string, message: string): Promise<void> {
   try {
     logger.info('Starting message processing:', { phoneNumber, message });
     
+    // Check if we have an existing conversation or need to create one
     let state = await getConversationState(phoneNumber);
+    if (!state) {
+      state = await createConversationState(phoneNumber);
+    }
+    
     logger.info('Retrieved conversation state:', { 
-      state: state ? {
-        current_step: state.current_step,
-        is_complete: state.is_complete,
-        has_form_data: !!state.form_data
-      } : null 
+      phoneNumber,
+      currentStep: state.current_step
     });
 
     const userInput = message.trim();
-
-    if (!state) {
-      logger.info('Creating new conversation state:', { phoneNumber });
-      try {
-        state = await updateConversationState(phoneNumber, {
-          current_step: 'start' as FormStep,
-          form_data: {},
-          phone_number: phoneNumber,
-          created_at: new Date().toISOString(),
-          last_updated: new Date().toISOString(),
-          is_complete: false
-        });
-        logger.info('Successfully created new conversation state:', { 
-          current_step: state.current_step,
-          phone_number: state.phone_number
-        });
-      } catch (dbError) {
-        logger.error('Failed to create conversation state:', { 
-          error: dbError instanceof Error ? {
-            name: dbError.name,
-            message: dbError.message,
-            stack: dbError.stack
-          } : dbError,
-          phoneNumber 
-        });
-        throw dbError;
-      }
-    }
 
     // Check for navigation commands first
     const navigationResult = await handleNavigationCommand(userInput, state, phoneNumber);
@@ -874,317 +218,140 @@ export async function processMessage(phoneNumber: string, message: string): Prom
       return;
     }
 
-    let nextStep: FormStep = state.current_step as FormStep;
+    let nextStep: FormStep = state.current_step;
     let responseMessage = '';
-    let formData = state.form_data || {};
+    let formData = { ...state.form_data };
 
     switch (state.current_step) {
       case 'start':
         if (userInput.toLowerCase() === 'yes') {
-          nextStep = 'is_referral';
+          nextStep = 'category';
         } else {
-          responseMessage = 'Please reply with YES to start the application, or type HELP for assistance.';
+          responseMessage = formatErrorMessage('start', 'Please reply with YES to start exploring our financial products.');
         }
         break;
         
-      case 'is_referral':
-        if (['1', '2'].includes(userInput)) {
-          formData.is_referral = userInput === '2';
-          nextStep = formData.is_referral ? 'referrer_details' : 'full_name';
-        } else {
-          responseMessage = 'Please select a valid option (1-2).';
-        }
-        break;
-        
-      case 'referrer_details':
-        if (userInput.toLowerCase() === 'yes') {
-          nextStep = 'referrer_name';
-        } else {
-          responseMessage = 'Please reply with YES to continue.';
-        }
-        break;
-        
-      case 'referrer_name':
-        if (validators.fullName(userInput)) {
-          if (!state.referrer_data) state.referrer_data = {};
-          state.referrer_data.full_name = userInput.trim();
-          nextStep = 'referrer_phone';
-        } else {
-          responseMessage = 'Please enter a valid full name.';
-        }
-        break;
-        
-      case 'referrer_phone':
-        if (validators.phoneNumber(userInput)) {
-          if (!state.referrer_data) state.referrer_data = {};
-          state.referrer_data.phone_number = userInput.trim();
-          nextStep = 'referrer_email';
-        } else {
-          responseMessage = 'Please enter a valid phone number.';
-        }
-        break;
-        
-      case 'referrer_email':
-        if (validators.email(userInput)) {
-          if (!state.referrer_data) state.referrer_data = {};
-          state.referrer_data.email = userInput.trim().toLowerCase();
-          nextStep = 'referrer_relationship';
-        } else {
-          responseMessage = 'Please enter a valid email address.';
-        }
-        break;
-        
-      case 'referrer_relationship':
-        if (validators.number(userInput) && Number(userInput) >= 1 && Number(userInput) <= 5) {
-          const relationships = {
-            '1': 'Family',
-            '2': 'Friend',
-            '3': 'Colleague',
-            '4': 'Business Associate',
-            '5': 'Other'
-          } as const;
+      case 'category':
+        if (['1', '2', '3'].includes(userInput)) {
+          const category = CATEGORIES[userInput];
+          formData.category = category;
           
-          if (!state.referrer_data) state.referrer_data = {};
-          state.referrer_data.relationship_to_applicant = relationships[userInput as keyof typeof relationships];
+          // Determine next step based on category
+          if (category === 'Loans') {
+            nextStep = 'loan_subcategory';
+          } else if (category === 'Insurance') {
+            nextStep = 'insurance_subcategory';
+          } else if (category === 'Mutual Funds') {
+            nextStep = 'mutual_fund_subcategory';
+          }
+        } else {
+          responseMessage = formatErrorMessage('category', 'Please select a valid option (1-3).');
+        }
+        break;
+        
+      case 'loan_subcategory':
+        if (Object.keys(LOAN_SUBCATEGORIES).includes(userInput)) {
+          formData.subcategory = LOAN_SUBCATEGORIES[userInput];
           nextStep = 'full_name';
         } else {
-          responseMessage = 'Please select a valid relationship option (1-5).';
+          responseMessage = formatErrorMessage('loan_subcategory', 'Please select a valid loan type (1-6).');
         }
+        break;
+        
+      case 'insurance_subcategory':
+        if (Object.keys(INSURANCE_SUBCATEGORIES).includes(userInput)) {
+          formData.subcategory = INSURANCE_SUBCATEGORIES[userInput];
+          nextStep = 'full_name';
+        } else {
+          responseMessage = formatErrorMessage('insurance_subcategory', 'Please select a valid insurance type (1-4).');
+        }
+        break;
+        
+      case 'mutual_fund_subcategory':
+        // For mutual funds, we only have one general inquiry option
+        formData.subcategory = 'General Inquiry';
+        nextStep = 'full_name';
         break;
 
       case 'full_name':
-        if (message.length > 2) {
-          formData.full_name = message;
-          nextStep = 'email';
+        if (validators.fullName(userInput)) {
+          formData.full_name = userInput;
+          nextStep = 'contact_number';
         } else {
-          responseMessage = 'Please enter a valid name.';
+          responseMessage = formatErrorMessage('full_name', 'Please enter a valid full name with at least first and last name.');
         }
         break;
 
-      case 'email':
-        if (validators.email(message)) {
-          formData.email = message;
-          nextStep = 'loan_type';
+      case 'contact_number':
+        if (validators.phoneNumber(userInput)) {
+          formData.contact_number = userInput;
+          nextStep = 'confirm';
         } else {
-          responseMessage = 'Please enter a valid email address.';
+          responseMessage = formatErrorMessage('contact_number', 'Please enter a valid phone number with country code.');
         }
         break;
 
-      case 'loan_type':
-        if (validators.number(message) && Number(message) >= 1 && Number(message) <= 4) {
-          formData.loan_type = message;
-          nextStep = 'loan_amount';
-        } else {
-          responseMessage = 'Please enter a valid loan type (1-4).';
-        }
-        break;
-
-      case 'loan_amount':
-        if (validators.number(message)) {
-          formData.loan_amount = message;
-          nextStep = 'purpose';
-        } else {
-          responseMessage = 'Please enter a valid loan amount in numbers only.';
-        }
-        break;
-
-      case 'purpose':
-        if (message.length >= 10) {
-          formData.purpose = message;
-          nextStep = 'monthly_income';
-        } else {
-          responseMessage = 'Please provide a brief description of at least 10 characters.';
-        }
-        break;
-
-      case 'monthly_income':
-        if (validators.number(message)) {
-          formData.monthly_income = message;
-          nextStep = 'employment_status';
-        } else {
-          responseMessage = 'Please enter a valid monthly income in numbers only.';
-        }
-        break;
-
-      case 'employment_status':
-        if (message.toLowerCase() === 'skip') {
-          nextStep = 'current_employer';
-        } else if (validators.number(message) && Number(message) >= 1 && Number(message) <= 3) {
-          formData.employment_status = message;
-          nextStep = 'current_employer';
-        } else {
-          responseMessage = 'Please enter a valid employment status (1-3) or type SKIP to skip this question.';
-        }
-        break;
-
-      case 'current_employer':
-        if (message.toLowerCase() === 'skip') {
-          nextStep = 'years_employed';
-        } else {
-          formData.current_employer = message;
-          nextStep = 'years_employed';
-        }
-        break;
-
-      case 'years_employed':
-        if (message.toLowerCase() === 'skip') {
-          nextStep = 'existing_loans';
-        } else if (validators.number(message)) {
-          formData.years_employed = message;
-          nextStep = 'existing_loans';
-        } else {
-          responseMessage = 'Please enter a valid number of years or type SKIP to skip this question.';
-        }
-        break;
-
-      case 'existing_loans':
-        if (message.toLowerCase() === 'skip') {
-          nextStep = 'cibil_consent';
-        } else if (message.toLowerCase() === 'yes') {
-          formData.existing_loans = true;
-          nextStep = 'cibil_consent';
-        } else if (message.toLowerCase() === 'no') {
-          formData.existing_loans = false;
-          nextStep = 'cibil_consent';
-        } else {
-          responseMessage = 'Please reply with YES, NO, or SKIP.';
-        }
-        break;
-
-      case 'cibil_consent':
-        if (message.toLowerCase() === 'skip') {
-          nextStep = 'preferred_tenure';
-        } else if (message.toLowerCase() === 'yes') {
-          formData.cibil_consent = true;
-          nextStep = 'preferred_tenure';
-        } else if (message.toLowerCase() === 'no') {
-          formData.cibil_consent = false;
-          nextStep = 'preferred_tenure';
-        } else {
-          responseMessage = 'Please reply with YES or NO.';
-        }
-        break;
-
-      case 'preferred_tenure':
-        if (message.toLowerCase() === 'skip') {
-          nextStep = 'preferred_communication';
-        } else if (validators.number(message)) {
-          formData.preferred_tenure = message;
-          nextStep = 'preferred_communication';
-        } else {
-          responseMessage = 'Please enter a valid number of months or type SKIP.';
-        }
-        break;
-
-      case 'preferred_communication':
-        if (message.toLowerCase() === 'skip') {
-          nextStep = 'review';
-        } else if (validators.number(message) && Number(message) >= 1 && Number(message) <= 3) {
-          formData.preferred_communication = message;
-          nextStep = 'review';
-        } else {
-          responseMessage = 'Please enter a valid communication preference (1-3) or type SKIP.';
-        }
-        break;
-
-      case 'review':
-        if (message.toLowerCase().startsWith('edit')) {
-          const editResult = await handleEditCommand(message, state);
-          if (editResult) {
-            nextStep = editResult.nextStep;
-            responseMessage = editResult.message;
-          } else {
-            responseMessage = 'Invalid edit command. Please type EDIT followed by the field number (e.g., "EDIT 3").';
-          }
-        } else if (message.toLowerCase() === 'yes') {
-          // Create loan application
-          const now = new Date().toISOString();
-          const application: LoanApplication = {
-            id: state.id,
-            created_at: state.created_at,
-            last_updated: now,
-            status: 'submitted',
-            ...state.form_data,
-            phone_number: phoneNumber
-          };
-
-          await createLoanApplication(application);
-          await updateConversationState(phoneNumber, {
-            ...state,
-            current_step: 'confirm',
-            is_complete: true,
-            last_updated: now
-          });
-
-          const confirmMessage = STEP_MESSAGES.confirm;
-          const messageToSend = typeof confirmMessage === 'function'
-            ? confirmMessage(state)
-            : confirmMessage;
-          
-          await sendWhatsAppMessage(phoneNumber, messageToSend);
-          return;
-        }
-
-        if (message.toLowerCase() === 'no') {
-          // Start over - reset all state
-          const now = new Date().toISOString();
-          const newState: ConversationState = {
-            id: state.id, // Preserve the original ID
+      case 'confirm':
+        if (userInput.toLowerCase() === 'start') {
+          // Reset for a new inquiry
+          await updateConversationState({
+            phone_number: phoneNumber,
             current_step: 'start',
             form_data: {},
-            phone_number: phoneNumber,
-            created_at: now,
-            last_updated: now,
-            is_complete: false,
-            is_referral: false
-          };
+            is_complete: false
+          });
           
-          await updateConversationState(phoneNumber, newState);
-
-          const startMessage = STEP_MESSAGES.start;
-          const messageToSend = typeof startMessage === 'function'
-            ? startMessage(newState)
-            : startMessage;
-          
-          await sendWhatsAppMessage(phoneNumber, messageToSend);
+          // Send the start message directly
+          await sendWhatsAppMessage(phoneNumber, STEP_MESSAGES.start);
           return;
+        } else {
+          responseMessage = 'Your inquiry has been submitted. Type START to begin a new inquiry.';
         }
-
-        responseMessage = 'Please type:\n' +
-          '• EDIT [number] - to modify a field\n' +
-          '• YES - to submit your application\n' +
-          '• NO - to start over';
         break;
 
       default:
         responseMessage = 'Sorry, something went wrong. Type RESTART to begin again or HELP for assistance.';
     }
 
+    // If we've reached confirm step and are just getting there, save the lead data
+    if (nextStep === 'confirm' && state.current_step !== 'confirm') {
+      try {
+        // Create lead in database
+        await createLead({
+          full_name: formData.full_name as string,
+          contact_number: formData.contact_number as string,
+          category: formData.category as CategoryType,
+          subcategory: formData.subcategory as SubcategoryType,
+        });
+        
+        // Mark conversation as complete
+        formData.status = 'pending';
+        
+        logger.info('Created lead:', {
+          full_name: formData.full_name,
+          category: formData.category,
+          subcategory: formData.subcategory
+        });
+      } catch (error) {
+        logger.error('Error creating lead:', { error, formData });
+        responseMessage = 'Sorry, we encountered an error submitting your inquiry. Please try again.';
+        nextStep = state.current_step; // Stay on current step
+      }
+    }
+
     // Update conversation state
-    if (nextStep !== state.current_step || Object.keys(formData).length > 0) {
-      await updateConversationState(phoneNumber, {
+    if (nextStep !== state.current_step || Object.keys(formData).length !== Object.keys(state.form_data).length) {
+      await updateConversationState({
+        phone_number: phoneNumber,
         current_step: nextStep,
         form_data: formData,
-        referrer_data: state.referrer_data
+        is_complete: nextStep === 'confirm'
       });
     }
 
     // If no error message was set and we have a next step, get the step message
     if (!responseMessage) {
-      const stepMessage = STEP_MESSAGES[nextStep];
-      if (typeof stepMessage === 'function') {
-        // Create a complete state object for the message function
-        const messageState: ConversationState = {
-          ...state,
-          current_step: nextStep,
-          form_data: formData,
-          referrer_data: state.referrer_data,
-          last_updated: new Date().toISOString()
-        };
-        responseMessage = stepMessage(messageState);
-      } else {
-        responseMessage = stepMessage;
-      }
+      responseMessage = STEP_MESSAGES[nextStep];
     }
 
     await sendWhatsAppMessage(phoneNumber, responseMessage);

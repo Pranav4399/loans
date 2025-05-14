@@ -1,57 +1,33 @@
-export interface LoanApplication {
+// Define main category types
+export type CategoryType = 'Loans' | 'Insurance' | 'Mutual Funds';
+
+// Define subcategories for each main category
+export type LoanSubcategory = 
+  | 'Personal Loan'
+  | 'Business Loan'
+  | 'Home Loan'
+  | 'Loan Against Property'
+  | 'Car Loan'
+  | 'Working Capital';
+
+export type InsuranceSubcategory = 
+  | 'Health Insurance'
+  | 'Motor Vehicle Insurance'
+  | 'Life Insurance'
+  | 'Property Insurance';
+
+export type MutualFundSubcategory = 'General Inquiry';
+
+// Type for subcategories
+export type SubcategoryType = LoanSubcategory | InsuranceSubcategory | MutualFundSubcategory;
+
+// Lead information structure
+export interface LeadInfo {
   id: string;
-  created_at: string;
-  // Essential Information
   full_name: string;
-  phone_number: string;
-  email: string;
-  loan_type: 'Personal' | 'Business' | 'Education' | 'Home';
-  loan_amount: number;
-  purpose: string;
-  monthly_income: number;
-  
-  // Optional Information
-  employment_status?: 'Salaried' | 'Self-employed' | 'Business Owner';
-  current_employer?: string;
-  years_employed?: number;
-  existing_loans?: boolean;
-  cibil_consent?: boolean;
-  preferred_tenure?: number;
-  preferred_communication?: 'WhatsApp' | 'Email' | 'Both';
-  
-  // Referral Information
-  is_referral?: boolean;
-  referrer_id?: string;
-  
-  // Metadata
-  status: 'pending' | 'submitted' | 'approved' | 'rejected';
-  last_updated: string;
-}
-
-export interface Referrer {
-  id: string;
+  contact_number: string;
+  category: CategoryType;
+  subcategory: SubcategoryType;
   created_at: string;
-  // Essential Information
-  full_name: string;
-  phone_number: string;
-  email: string;
-  relationship_to_applicant: 'Family' | 'Friend' | 'Colleague' | 'Business Associate' | 'Other';
-  // Metadata
-  last_updated: string;
-}
-
-export interface ConversationState {
-  id: string;
-  phone_number: string;
-  current_step: string;
-  form_data: Partial<LoanApplication>;
-  referrer_data?: Partial<Referrer>;
-  is_referral: boolean;
-  created_at: string;
-  last_updated: string;
-  is_complete: boolean;
-}
-
-export interface ConversationData extends Partial<LoanApplication> {
-  referrer_data?: Partial<Referrer>;
+  status: 'pending' | 'contacted' | 'converted' | 'closed';
 } 
