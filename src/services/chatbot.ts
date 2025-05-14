@@ -1,9 +1,10 @@
 import logger from '../config/logger';
-import { createConversationState, createLead, getConversationState, updateConversationState } from '../config/supabase';
+import { createConversationState, getConversationState, updateConversationState } from '../config/supabase';
 import { sendWhatsAppMessage } from '../config/twilio';
 import { ConversationState, FormStep, StepMessage } from '../types/chat';
 import { CategoryType, SubcategoryType } from '../types/database';
 import { validators } from '../utils/validation';
+import { createLead } from './leads';
 
 // Category constants
 export const CATEGORIES: Record<string, CategoryType> = {

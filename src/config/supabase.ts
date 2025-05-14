@@ -1,91 +1,33 @@
 import { createClient } from '@supabase/supabase-js';
+import { formatPhoneNumber } from '../services/webhook';
 import { ConversationState } from '../types/chat';
-import { LeadInfo } from '../types/database';
 import logger from './logger';
 
-if (!process.env.SUPABASE_URL || !process.env.SUPABASE_ANON_KEY) {
+if (!process.env.SUPABASE_URL || !process.env.SUPABASE_ANON_KEY || !process.env.SUPABASE_SERVICE_KEY) {
   throw new Error('Missing Supabase credentials in environment variables');
 }
 
-// Initialize Supabase client
+// Initialize Supabase client with anonymous key (limited permissions)
 export const supabase = createClient(
   process.env.SUPABASE_URL,
   process.env.SUPABASE_ANON_KEY
 );
 
+// Initialize Supabase admin client with service role key (full access)
+export const supabaseAdmin = createClient(
+      process.env.SUPABASE_URL,
+      process.env.SUPABASE_SERVICE_KEY,
+      {
+        auth: {
+          autoRefreshToken: false,
+          persistSession: false
+        }
+      }
+    )
+
 // Database table names
 export const LEADS_TABLE = 'leads';
 export const CONVERSATION_STATES_TABLE = 'conversation_states';
-
-// Format phone number to match database constraint
-function formatPhoneNumber(phoneNumber: string): string {
-  // Remove 'whatsapp:' prefix and any spaces
-  return phoneNumber.replace('whatsapp:', '').replace(/\s/g, '');
-}
-
-// Create a new lead in the database
-export async function createLead(leadData: Omit<LeadInfo, 'id' | 'created_at' | 'status'>): Promise<LeadInfo> {
-  const formattedPhone = formatPhoneNumber(leadData.contact_number);
-  
-  const { data, error } = await supabase
-    .from(LEADS_TABLE)
-    .insert([{
-      ...leadData,
-      contact_number: formattedPhone,
-      created_at: new Date().toISOString(),
-      status: 'pending'
-    }])
-    .select()
-    .single();
-
-  if (error) {
-    logger.error('Error creating lead:', { 
-      error,
-      formattedPhone,
-      leadData: JSON.stringify(leadData)
-    });
-    throw new Error(`Failed to create lead: ${error.message}`);
-  }
-
-  logger.info('Successfully created lead:', { 
-    id: data.id,
-    category: data.category,
-    subcategory: data.subcategory
-  });
-  
-  return data;
-}
-
-// Get lead by ID
-export async function getLeadById(id: string): Promise<LeadInfo | null> {
-  const { data, error } = await supabase
-    .from(LEADS_TABLE)
-    .select('*')
-    .eq('id', id)
-    .single();
-
-  if (error && error.code !== 'PGRST116') {
-    logger.error('Error getting lead:', { error, id });
-    throw new Error(`Failed to get lead: ${error.message}`);
-  }
-
-  return data;
-}
-
-// Update lead status
-export async function updateLeadStatus(id: string, status: LeadInfo['status']): Promise<void> {
-  const { error } = await supabase
-    .from(LEADS_TABLE)
-    .update({ status, last_updated: new Date().toISOString() })
-    .eq('id', id);
-
-  if (error) {
-    logger.error('Error updating lead status:', { error, id, status });
-    throw new Error(`Failed to update lead status: ${error.message}`);
-  }
-  
-  logger.info('Successfully updated lead status:', { id, status });
-}
 
 // Get conversation state by phone number
 export async function getConversationState(phoneNumber: string): Promise<ConversationState | null> {

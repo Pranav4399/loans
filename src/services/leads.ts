@@ -1,6 +1,7 @@
 import logger from '../config/logger';
-import { LEADS_TABLE, supabase } from '../config/supabase';
+import { LEADS_TABLE, supabaseAdmin } from '../config/supabase';
 import { LeadInfo } from '../types/database';
+import { formatPhoneNumber } from './webhook';
 
 /**
  * Interface for query options to filter and paginate leads
@@ -28,7 +29,7 @@ export async function getAllLeads({
     const offset = (page - 1) * limit;
     
     // Start building query
-    let query = supabase
+    let query = supabaseAdmin
       .from(LEADS_TABLE)
       .select('*', { count: 'exact' });
     
@@ -76,7 +77,7 @@ export async function getAllLeads({
  */
 export async function getLeadById(id: string): Promise<LeadInfo> {
   try {
-    const { data, error } = await supabase
+    const { data, error } = await supabaseAdmin
       .from(LEADS_TABLE)
       .select('*')
       .eq('id', id)
@@ -107,7 +108,7 @@ export async function updateLead(id: string, updates: Partial<LeadInfo>): Promis
     await getLeadById(id);
     
     // Perform the update
-    const { data, error } = await supabase
+    const { data, error } = await supabaseAdmin
       .from(LEADS_TABLE)
       .update(updates)
       .eq('id', id)
@@ -137,7 +138,7 @@ export async function getLeadStats(): Promise<{
 }> {
   try {
     // Get all leads to calculate stats
-    const { data, error } = await supabase
+    const { data, error } = await supabaseAdmin
       .from(LEADS_TABLE)
       .select('category');
     
@@ -161,3 +162,36 @@ export async function getLeadStats(): Promise<{
     throw error;
   }
 } 
+
+// Create a new lead in the database
+export async function createLead(leadData: Omit<LeadInfo, 'id' | 'created_at' | 'status'>): Promise<LeadInfo> {
+  const formattedPhone = formatPhoneNumber(leadData.contact_number);
+  
+  const { data, error } = await supabaseAdmin
+    .from(LEADS_TABLE)
+    .insert([{
+      ...leadData,
+      contact_number: formattedPhone,
+      created_at: new Date().toISOString(),
+      status: 'pending'
+    }])
+    .select()
+    .single();
+
+  if (error) {
+    logger.error('Error creating lead:', { 
+      error,
+      formattedPhone,
+      leadData: JSON.stringify(leadData)
+    });
+    throw new Error(`Failed to create lead: ${error.message}`);
+  }
+
+  logger.info('Successfully created lead:', { 
+    id: data.id,
+    category: data.category,
+    subcategory: data.subcategory
+  });
+  
+  return data;
+}
