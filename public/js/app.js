@@ -16,9 +16,13 @@ document.addEventListener('DOMContentLoaded', () => {
   const refreshBtn = document.getElementById('refresh-btn');
   const errorToast = document.getElementById('error-toast');
   const errorMessage = document.getElementById('error-message');
-  const closeToastBtn = document.querySelector('.close-toast');
+  const successToast = document.getElementById('success-toast');
+  const successMessage = document.getElementById('success-message');
+  const closeToastBtns = document.querySelectorAll('.close-toast');
   const leadDetailsModal = document.getElementById('lead-details-modal');
   const closeModalBtn = document.querySelector('.close-modal');
+  const updateStatusBtn = document.getElementById('update-status-btn');
+  const statusUpdateDropdown = document.getElementById('status-update');
   
   // Stats elements
   const loansCount = document.getElementById('loans-count');
@@ -42,6 +46,7 @@ document.addEventListener('DOMContentLoaded', () => {
     status: '',
     search: ''
   };
+  let currentLeadId = null; // Store current lead ID for status updates
   
   // Initialize the dashboard
   init();
@@ -56,8 +61,14 @@ document.addEventListener('DOMContentLoaded', () => {
     if (e.key === 'Enter') performSearch();
   });
   refreshBtn.addEventListener('click', refreshData);
-  closeToastBtn.addEventListener('click', hideErrorToast);
+  closeToastBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+      errorToast.classList.add('hidden');
+      successToast.classList.add('hidden');
+    });
+  });
   closeModalBtn.addEventListener('click', closeModal);
+  updateStatusBtn.addEventListener('click', updateLeadStatus);
   
   // Initialize dashboard
   function init() {
@@ -218,6 +229,9 @@ document.addEventListener('DOMContentLoaded', () => {
       // Check if we need to access the data property from the response
       const leadData = lead.data || lead;
       
+      // Store current lead ID for status updates
+      currentLeadId = leadData.id;
+      
       // Format date
       const createdDate = new Date(leadData.created_at);
       const formattedDate = createdDate.toLocaleDateString('en-US', {
@@ -243,13 +257,69 @@ document.addEventListener('DOMContentLoaded', () => {
       detailStatus.textContent = statusText;
       
       // Reset class and only add status class if it's not empty
-      detailStatus.className = 'detail-value';
+      detailStatus.className = '';
       if (statusClass) {
         detailStatus.classList.add(statusClass);
       }
       
+      // Set the current value in the status dropdown
+      statusUpdateDropdown.value = leadData.status || 'pending';
+      
       hideLoading();
       openModal();
+    } catch (error) {
+      hideLoading();
+      showError(error.message);
+    }
+  }
+  
+  // Update lead status
+  async function updateLeadStatus() {
+    if (!currentLeadId) {
+      showError('No lead selected');
+      return;
+    }
+    
+    const newStatus = statusUpdateDropdown.value;
+    showLoading();
+    
+    try {
+      const response = await fetch(`${CONFIG.API_URL}${CONFIG.ENDPOINTS.LEADS}/${currentLeadId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ status: newStatus })
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to update lead status');
+      }
+      
+      const result = await response.json();
+      
+      if (result.success) {
+        // Update the UI to reflect the change
+        const statusText = CONFIG.STATUS_TEXT[newStatus] || newStatus;
+        const statusClass = CONFIG.STATUS_CLASSES[newStatus] || '';
+        
+        // Update status display in the modal
+        detailStatus.textContent = statusText;
+        detailStatus.className = '';
+        if (statusClass) {
+          detailStatus.classList.add(statusClass);
+        }
+        
+        // Show success message
+        showSuccess(`Lead status updated to ${statusText}`);
+        
+        // Refresh the leads table
+        fetchLeads();
+      } else {
+        throw new Error(result.message || 'Failed to update status');
+      }
+      
+      hideLoading();
     } catch (error) {
       hideLoading();
       showError(error.message);
@@ -354,11 +424,19 @@ document.addEventListener('DOMContentLoaded', () => {
     errorToast.classList.remove('hidden');
     
     // Auto-hide after 5 seconds
-    setTimeout(hideErrorToast, 5000);
+    setTimeout(() => {
+      errorToast.classList.add('hidden');
+    }, 5000);
   }
   
-  function hideErrorToast() {
-    errorToast.classList.add('hidden');
+  function showSuccess(message) {
+    successMessage.textContent = message || 'Operation successful';
+    successToast.classList.remove('hidden');
+    
+    // Auto-hide after 3 seconds
+    setTimeout(() => {
+      successToast.classList.add('hidden');
+    }, 3000);
   }
   
   function openModal() {

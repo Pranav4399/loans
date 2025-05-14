@@ -742,4 +742,42 @@ tbody tr:last-child td {
 @keyframes spin {
   0% { transform: rotate(0deg); }
   100% { transform: rotate(360deg); }
+}
+
+/* Status Update Dropdown */
+.status-edit-container {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+.status-dropdown {
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+  font-family: 'Inter', sans-serif;
+  font-size: 0.95rem;
+  background-color: white;
+}
+
+.status-dropdown:focus {
+  outline: none;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 2px rgba(67, 97, 238, 0.15);
+}
+
+.modal-actions {
+  margin-top: 24px;
+  display: flex;
+  justify-content: flex-end;
+}
+
+/* Success Toast */
+.toast.success-toast {
+  background-color: #e7f7ef;
+  border-left: 4px solid #34c759;
+}
+
+.toast.success-toast .toast-content i {
+  color: #34c759;
 } 

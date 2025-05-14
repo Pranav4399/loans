@@ -173,7 +173,18 @@
         </div>
         <div class="detail-row">
           <div class="detail-label">Status:</div>
-          <div id="detail-status" class="detail-value"></div>
+          <div class="detail-value status-edit-container">
+            <span id="detail-status"></span>
+            <select id="status-update" class="status-dropdown">
+              <option value="pending">Pending</option>
+              <option value="contacted">Contacted</option>
+              <option value="converted">Converted</option>
+              <option value="closed">Closed</option>
+            </select>
+          </div>
+        </div>
+        <div class="modal-actions">
+          <button id="update-status-btn" class="btn primary">Update Status</button>
         </div>
       </div>
     </div>
@@ -183,6 +194,14 @@
     <div class="toast-content">
       <i class="fas fa-exclamation-circle"></i>
       <span id="error-message">Error message goes here</span>
+    </div>
+    <button class="close-toast">&times;</button>
+  </div>
+
+  <div id="success-toast" class="toast success-toast hidden">
+    <div class="toast-content">
+      <i class="fas fa-check-circle"></i>
+      <span id="success-message">Success message goes here</span>
     </div>
     <button class="close-toast">&times;</button>
   </div>

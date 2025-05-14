@@ -99,6 +99,34 @@ export async function getLeadById(id: string): Promise<LeadInfo> {
 }
 
 /**
+ * Update a lead's information
+ */
+export async function updateLead(id: string, updates: Partial<LeadInfo>): Promise<LeadInfo> {
+  try {
+    // First check if the lead exists
+    await getLeadById(id);
+    
+    // Perform the update
+    const { data, error } = await supabase
+      .from(LEADS_TABLE)
+      .update(updates)
+      .eq('id', id)
+      .select()
+      .single();
+    
+    if (error) {
+      logger.error('Error updating lead in database:', { error, id, updates });
+      throw new Error(`Failed to update lead: ${error.message}`);
+    }
+    
+    return data as LeadInfo;
+  } catch (error) {
+    logger.error('Error in updateLead service:', { error, id, updates });
+    throw error;
+  }
+}
+
+/**
  * Get lead statistics grouped by category
  */
 export async function getLeadStats(): Promise<{ 

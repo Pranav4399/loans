@@ -1,6 +1,6 @@
 import express from 'express';
 import logger from '../config/logger';
-import { getAllLeads, getLeadById, getLeadStats } from '../services/leads';
+import { getAllLeads, getLeadById, getLeadStats, updateLead } from '../services/leads';
 
 const router = express.Router();
 
@@ -100,6 +100,62 @@ router.get('/:id', async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to fetch lead',
+      error: errorMessage
+    });
+  }
+});
+
+/**
+ * PUT /api/leads/:id
+ * Update a lead's information (currently only status)
+ */
+router.put('/:id', async (req, res) => {
+  try {
+    const id = req.params.id;
+    const { status } = req.body;
+    
+    if (!status) {
+      return res.status(400).json({
+        success: false,
+        message: 'Status is required'
+      });
+    }
+    
+    // Validate status value
+    const validStatuses = ['pending', 'contacted', 'converted', 'closed'];
+    if (!validStatuses.includes(status)) {
+      return res.status(400).json({
+        success: false,
+        message: `Invalid status. Must be one of: ${validStatuses.join(', ')}`
+      });
+    }
+    
+    // Update lead in the database
+    const updatedLead = await updateLead(id, { status });
+    
+    // Log the status update
+    logger.info('Lead status updated:', { id, status });
+    
+    res.status(200).json({
+      success: true,
+      data: updatedLead
+    });
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    
+    // Handle not found error
+    if (errorMessage === 'Lead not found') {
+      return res.status(404).json({
+        success: false,
+        message: 'Lead not found'
+      });
+    }
+    
+    // Handle other errors
+    logger.error('Error in updateLead handler:', { error, id: req.params.id });
+    res.status(500).json({
+      success: false,
+      message: 'Failed to update lead',
       error: errorMessage
     });
   }
