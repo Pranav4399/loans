@@ -42,8 +42,6 @@ export const STEP_MESSAGES: Record<FormStep, StepMessage> = {
   loan_subcategory: '🏦 What type of loan are you interested in?\n\nChoose from these options:\n1️⃣ Personal Loan\n2️⃣ Business Loan\n3️⃣ Home Loan\n4️⃣ Loan Against Property\n5️⃣ Car Loan\n6️⃣ Working Capital\n\nReply with the number (1-6)',
 
   insurance_subcategory: '🛡️ What type of insurance are you interested in?\n\nChoose from these options:\n1️⃣ Health Insurance\n2️⃣ Motor Vehicle Insurance\n3️⃣ Life Insurance\n4️⃣ Property Insurance\n\nReply with the number (1-4)',
-
-  mutual_fund_subcategory: '📈 You\'ve selected Mutual Funds. Let\'s collect some information to help you better.',
   
   full_name: '📝 What is your name?\n\nPlease enter your name as it appears on official documents.\nExample: "John" or "John Smith"',
   
@@ -58,7 +56,6 @@ const HELP_MESSAGES: Record<FormStep, string> = {
   category: 'Enter a number (1-3) to select the financial product category you\'re interested in.',
   loan_subcategory: 'Enter a number (1-6) to select the specific loan type you\'re interested in.',
   insurance_subcategory: 'Enter a number (1-4) to select the specific insurance type you\'re interested in.',
-  mutual_fund_subcategory: 'Mutual funds are investment products managed by professionals. You just need to provide your contact information to learn more.',
   full_name: 'Please enter your full name as it appears on official documents. You can use letters and spaces.',
   contact_number: 'Enter a valid phone number with country code. This will be used to contact you about your inquiry.',
   confirm: 'Your inquiry has been submitted. You can type START to begin a new inquiry about another product.',
@@ -143,13 +140,6 @@ function formatErrorMessage(field: FormStep, error: string): string {
         'Enter only the number (1-4)',
         'Choose from the options shown',
         'Don\'t type the insurance name, just the number'
-      ]
-    },
-    mutual_fund_subcategory: {
-      examples: ['1'],
-      suggestions: [
-        'This is just an informational step',
-        'Type anything to continue'
       ]
     },
     full_name: {
@@ -250,7 +240,9 @@ export async function processMessage(phoneNumber: string, message: string): Prom
           } else if (category === 'Insurance') {
             nextStep = 'insurance_subcategory';
           } else if (category === 'Mutual Funds') {
-            nextStep = 'mutual_fund_subcategory';
+            // For mutual funds, set the subcategory directly and skip to name step
+            formData.subcategory = 'General Inquiry';
+            nextStep = 'full_name';
           }
         } else {
           responseMessage = formatErrorMessage('category', 'Please select a valid option (1-3).');
@@ -275,12 +267,6 @@ export async function processMessage(phoneNumber: string, message: string): Prom
         }
         break;
         
-      case 'mutual_fund_subcategory':
-        // For mutual funds, we only have one general inquiry option
-        formData.subcategory = 'General Inquiry';
-        nextStep = 'full_name';
-        break;
-
       case 'full_name':
         if (validators.fullName(userInput)) {
           formData.full_name = userInput;

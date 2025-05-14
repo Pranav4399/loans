@@ -6,7 +6,6 @@ export type FormStep =
   | 'category'
   | 'loan_subcategory'
   | 'insurance_subcategory'
-  | 'mutual_fund_subcategory'
   | 'full_name'
   | 'contact_number'
   | 'confirm';
@@ -17,7 +16,6 @@ export const FORM_STEPS = {
   CATEGORY: 'category',
   LOAN_SUBCATEGORY: 'loan_subcategory',
   INSURANCE_SUBCATEGORY: 'insurance_subcategory',
-  MUTUAL_FUND_SUBCATEGORY: 'mutual_fund_subcategory',
   FULL_NAME: 'full_name',
   CONTACT_NUMBER: 'contact_number',
   CONFIRM: 'confirm',
