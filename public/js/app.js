@@ -92,12 +92,12 @@ document.addEventListener('DOMContentLoaded', () => {
       
       const data = await response.json();
       
-      // Update pagination info
-      totalPages = Math.ceil(data.total / CONFIG.PAGINATION.ITEMS_PER_PAGE) || 1;
+      // Update pagination info from the correct response structure
+      totalPages = data.pagination?.pages || 1;
       updatePaginationControls();
       
-      // Render the leads
-      renderLeads(data.leads);
+      // Render the leads from the correct data structure
+      renderLeads(data.data || []);
     } catch (error) {
       showError(error.message);
       hideLoading();
@@ -120,11 +120,16 @@ document.addEventListener('DOMContentLoaded', () => {
       
       const data = await response.json();
       
-      // Update stats display
-      loansCount.textContent = data.loans || 0;
-      insuranceCount.textContent = data.insurance || 0;
-      mutualFundsCount.textContent = data.mutualFunds || 0;
-      totalCount.textContent = data.total || 0;
+      // Check if success is true and data is in the expected format
+      if (data.success) {
+        // Update stats display with the correct response structure
+        loansCount.textContent = data.loans || 0;
+        insuranceCount.textContent = data.insurance || 0;
+        mutualFundsCount.textContent = data.mutualFunds || 0;
+        totalCount.textContent = data.total || 0;
+      } else {
+        throw new Error('Invalid statistics data format');
+      }
     } catch (error) {
       showError(error.message);
     }
