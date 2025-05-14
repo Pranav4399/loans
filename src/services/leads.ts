@@ -84,4 +84,40 @@ export async function getLeadById(id: string): Promise<LeadInfo> {
     logger.error('Error in getLeadById service:', { error, id });
     throw error;
   }
+}
+
+/**
+ * Get lead statistics grouped by category
+ */
+export async function getLeadStats(): Promise<{ 
+  loans: number; 
+  insurance: number; 
+  mutualFunds: number; 
+  total: number 
+}> {
+  try {
+    // Get all leads to calculate stats
+    const { data, error } = await supabase
+      .from(LEADS_TABLE)
+      .select('category');
+    
+    if (error) {
+      logger.error('Error fetching lead stats from database:', { error });
+      throw new Error(`Failed to fetch lead statistics: ${error.message}`);
+    }
+    
+    // Calculate counts
+    const leads = data as { category: string }[];
+    const stats = {
+      loans: leads.filter(lead => lead.category === 'Loans').length,
+      insurance: leads.filter(lead => lead.category === 'Insurance').length,
+      mutualFunds: leads.filter(lead => lead.category === 'Mutual Funds').length,
+      total: leads.length
+    };
+    
+    return stats;
+  } catch (error) {
+    logger.error('Error in getLeadStats service:', { error });
+    throw error;
+  }
 } 

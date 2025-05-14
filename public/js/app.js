@@ -144,6 +144,8 @@ document.addEventListener('DOMContentLoaded', () => {
     
     leads.forEach(lead => {
       const row = document.createElement('tr');
+      row.classList.add('lead-row');
+      row.dataset.id = lead.id;
       
       // Format the date for better readability
       const createdDate = new Date(lead.created_at);
@@ -164,19 +166,17 @@ document.addEventListener('DOMContentLoaded', () => {
             ${CONFIG.STATUS_TEXT[lead.status] || lead.status}
           </span>
         </td>
-        <td>
-          <button class="action-btn view-details" data-id="${lead.id}">
-            <i class="fas fa-eye"></i>
-          </button>
-        </td>
       `;
       
       leadsTableBody.appendChild(row);
     });
     
-    // Add event listeners to view detail buttons
-    document.querySelectorAll('.view-details').forEach(btn => {
-      btn.addEventListener('click', () => viewLeadDetails(btn.dataset.id));
+    // Add event listeners to table rows
+    document.querySelectorAll('.lead-row').forEach(row => {
+      row.addEventListener('click', () => viewLeadDetails(row.dataset.id));
+      
+      // Add hover effect for better UX
+      row.style.cursor = 'pointer';
     });
   }
   

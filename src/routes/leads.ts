@@ -1,6 +1,6 @@
 import express from 'express';
 import logger from '../config/logger';
-import { getAllLeads, getLeadById } from '../services/leads';
+import { getAllLeads, getLeadById, getLeadStats } from '../services/leads';
 
 const router = express.Router();
 
@@ -34,6 +34,30 @@ router.get('/', async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to fetch leads',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+/**
+ * GET /api/leads/stats
+ * Get lead statistics grouped by category
+ */
+router.get('/stats', async (req, res) => {
+  try {
+    // Get lead statistics from service
+    const stats = await getLeadStats();
+    
+    // Return formatted response
+    res.status(200).json({
+      success: true,
+      ...stats
+    });
+  } catch (error) {
+    logger.error('Error in getLeadStats handler:', { error });
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch lead statistics',
       error: error instanceof Error ? error.message : 'Unknown error'
     });
   }
