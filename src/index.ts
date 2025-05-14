@@ -4,6 +4,7 @@ import dotenv from 'dotenv';
 import express from 'express';
 import rateLimit from 'express-rate-limit';
 import helmet from 'helmet';
+import path from 'path';
 import logger from './config/logger';
 import healthRoutes from './routes/health';
 import leadsRoutes from './routes/leads';
@@ -35,6 +36,9 @@ if (process.env.NODE_ENV === 'production') {
 // Body parsing middleware
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// Serve static files from the public directory
+app.use(express.static(path.join(__dirname, '../public')));
 
 // Initialize Supabase client
 const supabaseUrl = process.env.SUPABASE_URL || '';
@@ -70,6 +74,7 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   logger.info(`Server is running on port ${PORT}`);
   logger.info(`Environment: ${process.env.NODE_ENV || 'development'}`);
+  logger.info('Frontend dashboard available at: /');
   logger.info('WhatsApp webhook endpoint: /api/webhook');
   logger.info('Leads API endpoint: /api/leads');
   logger.info('Health check endpoint: /health');

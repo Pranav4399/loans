@@ -259,7 +259,7 @@ export async function processMessage(phoneNumber: string, message: string): Prom
         if (userInput.toLowerCase() === 'yes') {
           nextStep = 'category';
         } else {
-          responseMessage = formatErrorMessage('start', 'Please reply with YES to start exploring our financial products.');
+          responseMessage = 'To start exploring our financial products, please reply with YES.';
         }
         break;
         
