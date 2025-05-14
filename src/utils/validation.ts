@@ -1,20 +1,33 @@
 // Validation utilities for chatbot inputs
 export const validators = {
   /**
-   * Validates a phone number in E.164 format
-   * Example: +919876543210, +14155552671
+   * Validates a phone number
+   * Allows both E.164 format (e.g., +919876543210) and 
+   * plain numbers without country code (e.g., 9876543210)
    */
   phoneNumber: (value: string): boolean => {
-    const phoneRegex = /^\+[1-9]\d{1,14}$/;
-    return phoneRegex.test(value);
+    // Allow E.164 format (with + country code)
+    const e164Regex = /^\+[1-9]\d{1,14}$/;
+    
+    // Allow plain numbers (at least 6 digits)
+    const plainNumberRegex = /^\d{6,15}$/;
+    
+    return e164Regex.test(value) || plainNumberRegex.test(value);
   },
 
   /**
-   * Validates a full name with at least first and last names
-   * Example: "John Smith", "Mary Jane Wilson"
+   * Validates a name with first name only
+   * Last name is optional and can be any length if provided
    */
   fullName: (value: string): boolean => {
-    const nameParts = value.trim().split(/\s+/);
-    return nameParts.length >= 2 && nameParts.every(part => part.length >= 2);
+    const trimmedValue = value.trim();
+    
+    // At least one character required
+    if (trimmedValue.length < 1) {
+      return false;
+    }
+    
+    // No validation for length of individual parts
+    return true;
   }
 }; 

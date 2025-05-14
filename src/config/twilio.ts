@@ -25,7 +25,7 @@ export interface QuickReplyOption {
  * Send a WhatsApp message with optional quick replies
  * @param to Recipient phone number
  * @param message Message text
- * @param options Optional quick reply buttons
+ * @param options Optional quick reply options (will be displayed as text)
  */
 export async function sendWhatsAppMessage(
   to: string, 
@@ -33,28 +33,26 @@ export async function sendWhatsAppMessage(
   options?: QuickReplyOption[]
 ) {
   try {
-    // Base message params
-    const messageParams: any = {
-      body: message,
-      from: `whatsapp:${TWILIO_PHONE_NUMBER}`,
-      to: `whatsapp:${to}`
-    };
-
-    // Add interactive buttons if options provided
+    // Prepare message body
+    let messageBody = message;
+    
+    // Add text-based options if provided
     if (options && options.length > 0) {
-      // WhatsApp Business API supports interactive messages
-      // We'll use the standard message for now and include button options in text
-      // For example: "Reply with: 1️⃣ Loans, 2️⃣ Insurance, 3️⃣ Mutual Funds"
-      const buttonText = options.map(opt => 
+      const optionsText = options.map(opt => 
         `${opt.title} (${opt.payload})`
       ).join(', ');
       
-      messageParams.body = `${message}\n\nQuick replies: ${buttonText}`;
+      messageBody = `${message}\n\nQuick replies: ${optionsText}`;
     }
     
-    const response = await twilioClient.messages.create(messageParams);
-    logger.info('WhatsApp message sent:', { to, messageId: response.sid });
+    // Create and send the message
+    const response = await twilioClient.messages.create({
+      body: messageBody,
+      from: `whatsapp:${TWILIO_PHONE_NUMBER}`,
+      to: `whatsapp:${to}`
+    });
     
+    logger.info('WhatsApp message sent:', { to, messageId: response.sid });
     return response;
   } catch (error) {
     logger.error('Error sending WhatsApp message:', { error });
