@@ -33,7 +33,7 @@ export const CONVERSATION_STATES_TABLE = 'conversation_states';
 export async function getConversationState(phoneNumber: string): Promise<ConversationState | null> {
   const formattedPhone = formatPhoneNumber(phoneNumber);
   
-  const { data, error } = await supabase
+  const { data, error } = await supabaseAdmin
     .from(CONVERSATION_STATES_TABLE)
     .select('*')
     .eq('phone_number', formattedPhone)
@@ -64,7 +64,7 @@ export async function createConversationState(phoneNumber: string): Promise<Conv
     is_complete: false
   };
   
-  const { data, error } = await supabase
+  const { data, error } = await supabaseAdmin
     .from(CONVERSATION_STATES_TABLE)
     .insert([newState])
     .select()
@@ -112,7 +112,7 @@ export async function updateConversationState(updates: Partial<ConversationState
   }
   
   // Update in database
-  const { data, error } = await supabase
+  const { data, error } = await supabaseAdmin
     .from(CONVERSATION_STATES_TABLE)
     .update(updatedData)
     .eq('id', currentState.id)
