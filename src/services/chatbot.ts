@@ -1,6 +1,6 @@
 import logger from '../config/logger';
 import { createConversationState, createLead, getConversationState, updateConversationState } from '../config/supabase';
-import { sendWhatsAppMessage } from '../config/twilio';
+import { QuickReplyOption, sendWhatsAppMessage } from '../config/twilio';
 import { ConversationState, FormStep, StepMessage } from '../types/chat';
 import { CategoryType, SubcategoryType } from '../types/database';
 import { validators } from '../utils/validation';
@@ -35,7 +35,7 @@ export const MUTUAL_FUND_SUBCATEGORIES: Record<string, SubcategoryType> = {
 
 // Questions for each step
 export const STEP_MESSAGES: Record<FormStep, StepMessage> = {
-  start: '👋 Welcome to the Financial Services Bot!\n\nI\'ll help you inquire about our various financial products. You can type:\n• RESTART - to start over\n• EXIT - to cancel current inquiry\n• HELP - to see instructions\n\nReady to begin? (Reply YES to start)',
+  start: '👋 Welcome to Andromeda, India\'s Largest Loan Distributor!\n\nWe offer a variety of financial products including Loans, Insurance, and Mutual Funds with:\n• 125+ lending partners\n• Present in 100+ cities\n• Rs. 75,000+ CR loans disbursed annually\n\nReady to explore your options? Reply with (YES, Yes, yes) to start.\n\nType HELP if you need assistance.',
   
   category: '💰 What financial product are you interested in?\n\nChoose from these options:\n1️⃣ Loans\n2️⃣ Insurance\n3️⃣ Mutual Funds\n\nReply with the number (1-3)',
 
@@ -54,7 +54,7 @@ export const STEP_MESSAGES: Record<FormStep, StepMessage> = {
 
 // Help messages for each step
 const HELP_MESSAGES: Record<FormStep, string> = {
-  start: 'Type YES to start exploring our financial products, or RESTART to begin again.',
+  start: 'Andromeda is India\'s largest loan distributor with 25,000+ financial advisors. We connect you with the best financial products tailored to your needs. To begin, simply reply with YES, and our guided process will help you find the right product. For customer support, call 1800 123 3001.',
   category: 'Enter a number (1-3) to select the financial product category you\'re interested in.',
   loan_subcategory: 'Enter a number (1-6) to select the specific loan type you\'re interested in.',
   insurance_subcategory: 'Enter a number (1-4) to select the specific insurance type you\'re interested in.',
@@ -62,6 +62,38 @@ const HELP_MESSAGES: Record<FormStep, string> = {
   full_name: 'Please enter your full name as it appears on official documents. You can use letters and spaces.',
   contact_number: 'Enter a valid phone number with country code. This will be used to contact you about your inquiry.',
   confirm: 'Your inquiry has been submitted. You can type START to begin a new inquiry about another product.',
+};
+
+// Quick reply options for each step
+const QUICK_REPLIES: Partial<Record<FormStep, QuickReplyOption[]>> = {
+  start: [
+    { title: 'Yes', payload: 'YES' }
+  ],
+  category: [
+    { title: '1. Loans', payload: '1' },
+    { title: '2. Insurance', payload: '2' },
+    { title: '3. Mutual Funds', payload: '3' }
+  ],
+  loan_subcategory: [
+    { title: '1. Personal Loan', payload: '1' },
+    { title: '2. Business Loan', payload: '2' },
+    { title: '3. Home Loan', payload: '3' },
+    { title: '4. Loan Against Property', payload: '4' },
+    { title: '5. Car Loan', payload: '5' },
+    { title: '6. Working Capital', payload: '6' }
+  ],
+  insurance_subcategory: [
+    { title: '1. Health Insurance', payload: '1' },
+    { title: '2. Motor Vehicle Insurance', payload: '2' },
+    { title: '3. Life Insurance', payload: '3' },
+    { title: '4. Property Insurance', payload: '4' }
+  ],
+  mutual_fund_subcategory: [
+    { title: 'Continue', payload: '1' }
+  ],
+  confirm: [
+    { title: 'Start New Inquiry', payload: 'START' }
+  ]
 };
 
 // Handle navigation commands
@@ -302,7 +334,11 @@ export async function processMessage(phoneNumber: string, message: string): Prom
           });
           
           // Send the start message directly
-          await sendWhatsAppMessage(phoneNumber, STEP_MESSAGES.start);
+          await sendWhatsAppMessage(
+            phoneNumber, 
+            STEP_MESSAGES.start,
+            QUICK_REPLIES.start
+          );
           return;
         } else {
           responseMessage = 'Your inquiry has been submitted. Type START to begin a new inquiry.';
@@ -351,10 +387,52 @@ export async function processMessage(phoneNumber: string, message: string): Prom
 
     // If no error message was set and we have a next step, get the step message
     if (!responseMessage) {
-      responseMessage = STEP_MESSAGES[nextStep];
+      if (nextStep === 'confirm') {
+        // Create personalized confirmation message based on selected products
+        const categoryName = formData.category as CategoryType;
+        const subcategoryName = formData.subcategory as SubcategoryType;
+        const userName = formData.full_name?.split(' ')[0] || 'there'; // Get first name or default
+        
+        // Format subcategory for URL
+        const formattedSubcategory = String(subcategoryName).toLowerCase().replace(/\s+/g, '-');
+        
+        // Generate category-specific messages and links
+        let productInfo = '';
+        let productLink = '';
+        
+        if (categoryName === 'Loans') {
+          productLink = `https://www.andromedaloans.com/loans/${formattedSubcategory}`;
+          
+          // Add loan-specific information
+          if (subcategoryName === 'Personal Loan') {
+            productInfo = 'Personal loans with competitive interest rates starting at 10.5% p.a.';
+          } else if (subcategoryName === 'Home Loan') {
+            productInfo = 'Home loans with up to 85% financing and 30-year tenure options.';
+          } else if (subcategoryName === 'Business Loan') {
+            productInfo = 'Business loans with minimal documentation and quick approval.';
+          } else {
+            productInfo = `Our ${subcategoryName} options are designed for optimal flexibility and value.`;
+          }
+        } else if (categoryName === 'Insurance') {
+          productLink = `https://www.andromedaloans.com/insurance/${formattedSubcategory}`;
+          productInfo = `Our ${subcategoryName} plans offer comprehensive coverage at competitive premiums.`;
+        } else { // Mutual Funds
+          productLink = 'https://www.andromedaloans.com/mutual-funds';
+          productInfo = 'Our mutual fund experts will help you find the right investment options for your goals.';
+        }
+        
+        // Create the personalized message
+        responseMessage = `🎉 Thank you, ${userName}!\n\nYour interest in ${subcategoryName} has been recorded. ${productInfo}\n\nA representative will contact you shortly at ${formData.contact_number}.\n\n[Click here](${productLink}) to learn more about our ${subcategoryName} offerings.\n\nType START if you'd like to inquire about another product.`;
+      } else {
+        responseMessage = STEP_MESSAGES[nextStep];
+      }
     }
 
-    await sendWhatsAppMessage(phoneNumber, responseMessage);
+    // Get quick replies for the current step if available
+    const quickReplies = QUICK_REPLIES[nextStep];
+    
+    // Send the message with quick replies if available
+    await sendWhatsAppMessage(phoneNumber, responseMessage, quickReplies);
   } catch (error) {
     logger.error('Error processing message:', { 
       error: error instanceof Error ? {

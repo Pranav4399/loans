@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Andromeda Loans - Lead Dashboard</title>
+  <link rel="stylesheet" href="css/styles.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+  <header>
+    <div class="logo">
+      <i class="fas fa-money-bill-wave"></i>
+      <h1>Andromeda Loans</h1>
+    </div>
+    <div class="user-info">
+      <span>Lead Dashboard</span>
+    </div>
+  </header>
+
+  <div class="container">
+    <div class="sidebar">
+      <h2>Filters</h2>
+      <div class="filter-group">
+        <label for="category-filter">Category:</label>
+        <select id="category-filter">
+          <option value="">All Categories</option>
+          <option value="Loans">Loans</option>
+          <option value="Insurance">Insurance</option>
+          <option value="Mutual Funds">Mutual Funds</option>
+        </select>
+      </div>
+      <div class="filter-group">
+        <label for="status-filter">Status:</label>
+        <select id="status-filter">
+          <option value="">All Statuses</option>
+          <option value="pending">Pending</option>
+          <option value="contacted">Contacted</option>
+          <option value="converted">Converted</option>
+          <option value="closed">Closed</option>
+        </select>
+      </div>
+      <button id="apply-filters" class="btn primary">Apply Filters</button>
+      <button id="reset-filters" class="btn secondary">Reset</button>
+    </div>
+
+    <main>
+      <div class="stats-container">
+        <div class="stat-card">
+          <div class="stat-icon loans">
+            <i class="fas fa-hand-holding-usd"></i>
+          </div>
+          <div class="stat-info">
+            <h3>Loans</h3>
+            <p id="loans-count">0</p>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon insurance">
+            <i class="fas fa-shield-alt"></i>
+          </div>
+          <div class="stat-info">
+            <h3>Insurance</h3>
+            <p id="insurance-count">0</p>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon mutual-funds">
+            <i class="fas fa-chart-line"></i>
+          </div>
+          <div class="stat-info">
+            <h3>Mutual Funds</h3>
+            <p id="mutual-funds-count">0</p>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon total">
+            <i class="fas fa-users"></i>
+          </div>
+          <div class="stat-info">
+            <h3>Total Leads</h3>
+            <p id="total-count">0</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="leads-container">
+        <div class="leads-header">
+          <h2>Customer Leads</h2>
+          <div class="leads-actions">
+            <div class="search-box">
+              <input type="text" id="search-input" placeholder="Search leads...">
+              <button id="search-btn"><i class="fas fa-search"></i></button>
+            </div>
+            <button id="refresh-btn" class="btn icon-btn" title="Refresh Data">
+              <i class="fas fa-sync-alt"></i>
+            </button>
+          </div>
+        </div>
+
+        <div class="leads-table-container">
+          <table id="leads-table">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Contact</th>
+                <th>Category</th>
+                <th>Subcategory</th>
+                <th>Date</th>
+                <th>Status</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody id="leads-table-body">
+              <!-- Leads will be populated here by JavaScript -->
+            </tbody>
+          </table>
+          <div id="loading-indicator" class="hidden">
+            <div class="spinner"></div>
+            <p>Loading data...</p>
+          </div>
+          <div id="no-results" class="hidden">
+            <i class="fas fa-search"></i>
+            <p>No leads found matching your criteria</p>
+          </div>
+        </div>
+
+        <div class="pagination">
+          <button id="prev-page" class="btn page-btn" disabled>
+            <i class="fas fa-chevron-left"></i> Previous
+          </button>
+          <span id="page-info">Page 1 of 1</span>
+          <button id="next-page" class="btn page-btn" disabled>
+            Next <i class="fas fa-chevron-right"></i>
+          </button>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <div id="lead-details-modal" class="modal hidden">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>Lead Details</h2>
+        <button class="close-modal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="detail-row">
+          <div class="detail-label">Full Name:</div>
+          <div id="detail-name" class="detail-value"></div>
+        </div>
+        <div class="detail-row">
+          <div class="detail-label">Contact Number:</div>
+          <div id="detail-contact" class="detail-value"></div>
+        </div>
+        <div class="detail-row">
+          <div class="detail-label">Category:</div>
+          <div id="detail-category" class="detail-value"></div>
+        </div>
+        <div class="detail-row">
+          <div class="detail-label">Subcategory:</div>
+          <div id="detail-subcategory" class="detail-value"></div>
+        </div>
+        <div class="detail-row">
+          <div class="detail-label">Created On:</div>
+          <div id="detail-date" class="detail-value"></div>
+        </div>
+        <div class="detail-row">
+          <div class="detail-label">Status:</div>
+          <div id="detail-status" class="detail-value"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="error-toast" class="toast hidden">
+    <div class="toast-content">
+      <i class="fas fa-exclamation-circle"></i>
+      <span id="error-message">Error message goes here</span>
+    </div>
+    <button class="close-toast">&times;</button>
+  </div>
+
+  <script src="js/config.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html> 

@@ -1,11 +1,13 @@
-import express from 'express';
-import dotenv from 'dotenv';
 import { createClient } from '@supabase/supabase-js';
 import compression from 'compression';
-import helmet from 'helmet';
+import dotenv from 'dotenv';
+import express from 'express';
 import rateLimit from 'express-rate-limit';
-import webhookRoutes from './routes/webhook';
+import helmet from 'helmet';
 import logger from './config/logger';
+import healthRoutes from './routes/health';
+import leadsRoutes from './routes/leads';
+import webhookRoutes from './routes/webhook';
 
 // Load environment variables
 dotenv.config();
@@ -39,26 +41,21 @@ const supabaseUrl = process.env.SUPABASE_URL || '';
 const supabaseKey = process.env.SUPABASE_ANON_KEY || '';
 const supabase = createClient(supabaseUrl, supabaseKey);
 
-// Register routes
-app.use('/api', webhookRoutes);
-
-// Enhanced health check endpoint
-app.get('/health', (req, res) => {
-  const healthcheck = {
-    uptime: process.uptime(),
-    message: 'OK',
-    timestamp: new Date().toISOString()
-  };
-  
-  try {
-    logger.info('Health check requested');
-    res.json(healthcheck);
-  } catch (error) {
-    logger.error('Health check failed:', { error });
-    healthcheck.message = 'ERROR';
-    res.status(503).json(healthcheck);
+// CORS middleware
+app.use((req, res, next) => {
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, X-API-Key');
+  res.header('Access-Control-Allow-Methods', 'GET, OPTIONS');
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
   }
+  next();
 });
+
+// Register routes
+app.use('/api/webhook', webhookRoutes);
+app.use('/api/leads', leadsRoutes);
+app.use('/health', healthRoutes);
 
 // Error handling middleware
 app.use((err: Error, req: express.Request, res: express.Response, next: express.NextFunction) => {
@@ -72,6 +69,8 @@ app.use((err: Error, req: express.Request, res: express.Response, next: express.
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   logger.info(`Server is running on port ${PORT}`);
-  logger.info(`Environment: ${process.env.NODE_ENV}`);
+  logger.info(`Environment: ${process.env.NODE_ENV || 'development'}`);
   logger.info('WhatsApp webhook endpoint: /api/webhook');
+  logger.info('Leads API endpoint: /api/leads');
+  logger.info('Health check endpoint: /health');
 }); 

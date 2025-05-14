@@ -92,4 +92,135 @@ src/
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details. 
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## API Documentation
+
+The application provides a REST API for accessing lead information. All API endpoints are protected with API key authentication.
+
+### Authentication
+
+All API requests require an API key to be passed in the `X-API-Key` header:
+
+```
+X-API-Key: your-api-key-here
+```
+
+The API key can be set in the `.env` file with the `API_KEY` environment variable.
+
+### Endpoints
+
+#### Get all leads
+
+```http
+GET /api/leads
+```
+
+Query parameters:
+- `page` (optional): Page number for pagination (default: 1)
+- `limit` (optional): Number of results per page (default: 10)
+- `status` (optional): Filter by status ('pending', 'contacted', 'converted', 'closed')
+- `category` (optional): Filter by category ('Loans', 'Insurance', 'Mutual Funds')
+
+Response:
+
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "id": "uuid-here",
+      "full_name": "John Smith",
+      "contact_number": "+919876543210",
+      "category": "Loans",
+      "subcategory": "Personal Loan",
+      "created_at": "2023-06-15T10:30:00Z",
+      "status": "pending"
+    },
+    // More lead objects...
+  ],
+  "pagination": {
+    "total": 45,
+    "page": 1,
+    "limit": 10,
+    "pages": 5
+  }
+}
+```
+
+#### Get lead by ID
+
+```http
+GET /api/leads/:id
+```
+
+Response:
+
+```json
+{
+  "success": true,
+  "data": {
+    "id": "uuid-here",
+    "full_name": "John Smith",
+    "contact_number": "+919876543210",
+    "category": "Loans",
+    "subcategory": "Personal Loan",
+    "created_at": "2023-06-15T10:30:00Z",
+    "status": "pending"
+  }
+}
+```
+
+### Error Responses
+
+#### Authentication Error (401 Unauthorized)
+
+```json
+{
+  "success": false,
+  "message": "Unauthorized: Invalid API key"
+}
+```
+
+#### Not Found Error (404 Not Found)
+
+```json
+{
+  "success": false,
+  "message": "Lead not found"
+}
+```
+
+#### Server Error (500 Internal Server Error)
+
+```json
+{
+  "success": false,
+  "message": "Failed to fetch leads",
+  "error": "Error details here"
+}
+```
+
+## Frontend Integration Example
+
+```javascript
+// Example React code to fetch leads with API key
+const fetchLeads = async (page = 1) => {
+  try {
+    const response = await fetch(`https://your-api-domain.com/api/leads?page=${page}`, {
+      headers: {
+        'X-API-Key': 'your-api-key-here'
+      }
+    });
+    
+    const data = await response.json();
+    if (!data.success) {
+      throw new Error(data.message);
+    }
+    
+    return data;
+  } catch (error) {
+    console.error('Error fetching leads:', error);
+    throw error;
+  }
+};
