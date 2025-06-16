@@ -3,7 +3,6 @@ import { LeadInfo } from './database';
 // Form steps configuration
 export type FormStep = 
   | 'start'
-  | 'category'
   | 'loan_subcategory'
   | 'insurance_subcategory'
   | 'full_name'
@@ -13,7 +12,6 @@ export type FormStep =
 // Step constants
 export const FORM_STEPS = {
   START: 'start',
-  CATEGORY: 'category',
   LOAN_SUBCATEGORY: 'loan_subcategory',
   INSURANCE_SUBCATEGORY: 'insurance_subcategory',
   FULL_NAME: 'full_name',

@@ -36,9 +36,7 @@ export const MUTUAL_FUND_SUBCATEGORIES: Record<string, SubcategoryType> = {
 
 // Questions for each step
 export const STEP_MESSAGES: Record<FormStep, StepMessage> = {
-  start: '👋 *Welcome to Andromeda*\n\n🏆 *India\'s Largest Loan Distributor* 🏆\n\n*About Us:*\n• 25,000+ financial advisors nationwide\n• 125+ lending partners for best offers\n• Present in 100+ cities across India\n• Rs. 75,000+ CR loans disbursed annually\n• Trusted by 2+ million customers\n\n*Our Products:*\n• 🏦 Loans: Personal, Home, Business & more\n• 🛡️ Insurance: Health, Life, Motor & more\n• 📈 Mutual Funds: Diverse investment options\n\n➡️ Ready to explore your financial options? Simply reply with *YES* to start.\n\n💬 Type *HELP* anytime for assistance.',
-  
-  category: '💰 What financial product are you interested in?\n\nChoose from these options:\n1️⃣ Loans\n2️⃣ Insurance\n3️⃣ Mutual Funds\n\nReply with the number (1-3)',
+  start: '👋 *Welcome to Andromeda*\n\n• 25,000+ financial advisors nationwide\n• 125+ lending partners for best offers\n• Present in 100+ cities across India\n• Rs. 10,000+ CR loans disbursed annually\n• Trusted by 3+ million customers\n• 5000 branches pan india\n\n*Our Products:*\n• 🏦 Loans: Personal, Home, Business & more\n• 🛡️ Insurance: Health, Life, Motor & more\n• 📈 Mutual Funds: Diverse investment options\n\n💰 What financial product are you interested in?\n\nChoose from these options:\n1️⃣ Loans\n2️⃣ Insurance\n3️⃣ Mutual Funds\n\nReply with the number (1-3)\n\n💬 Type *HELP* anytime for assistance.',
 
   loan_subcategory: '🏦 What type of loan are you interested in?\n\nChoose from these options:\n1️⃣ Personal Loan\n2️⃣ Business Loan\n3️⃣ Home Loan\n4️⃣ Loan Against Property\n5️⃣ Car Loan\n6️⃣ Working Capital\n\nReply with the number (1-6)',
 
@@ -53,8 +51,7 @@ export const STEP_MESSAGES: Record<FormStep, StepMessage> = {
 
 // Help messages for each step
 const HELP_MESSAGES: Record<FormStep, string> = {
-  start: 'Andromeda is India\'s largest loan distributor with 25,000+ financial advisors. We connect you with the best financial products tailored to your needs. To begin, simply reply with YES, and our guided process will help you find the right product. For customer support, call 1800 123 3001.',
-  category: 'Enter a number (1-3) to select the financial product category you\'re interested in.',
+  start: 'Andromeda connects you with the best financial products tailored to your needs through our network of 25,000+ financial advisors. Simply select a number (1-3) to choose the financial product category you\'re interested in. For customer support, call 1800 123 3001.',
   loan_subcategory: 'Enter a number (1-6) to select the specific loan type you\'re interested in.',
   insurance_subcategory: 'Enter a number (1-4) to select the specific insurance type you\'re interested in.',
   full_name: 'Please enter your full name as it appears on official documents. You can use letters and spaces.',
@@ -116,10 +113,6 @@ async function handleNavigationCommand(
 function formatErrorMessage(field: FormStep, error: string): string {
   const errorMessages: Record<FormStep, { examples: string[]; suggestions: string[] }> = {
     start: {
-      examples: ['YES'],
-      suggestions: ['Type YES in any case (yes, Yes, YES)']
-    },
-    category: {
       examples: ['1', '2', '3'],
       suggestions: [
         'Enter only the number (1-3)',
@@ -191,14 +184,21 @@ export async function processMessage(phoneNumber: string, message: string): Prom
     // Check if we have an existing conversation or need to create one
     let state = await getConversationState(phoneNumber);
     if (!state) {
+      // Create new conversation starting directly with category selection
       state = await createConversationState(phoneNumber);
       
-      // Send the welcome message automatically for new conversations
-      logger.info('New conversation started, sending welcome message');
+      // Send the welcome message with category options for new conversations
+      logger.info('New conversation started, sending welcome message with category options');
       await sendWhatsAppMessage(phoneNumber, STEP_MESSAGES.start);
       
-      // Return without processing the first message
-      // This ensures the user sees the welcome message first
+      // Set the state to start so the user's first message will be processed as category selection
+      await updateConversationState({
+        phone_number: phoneNumber,
+        current_step: 'start',
+        form_data: {},
+        is_complete: false
+      });
+      
       return;
     }
     
@@ -223,14 +223,7 @@ export async function processMessage(phoneNumber: string, message: string): Prom
 
     switch (state.current_step) {
       case 'start':
-        if (userInput.toLowerCase() === 'yes') {
-          nextStep = 'category';
-        } else {
-          responseMessage = 'To start exploring our financial products, please reply with YES.';
-        }
-        break;
-        
-      case 'category':
+        // Handle direct category selection from the start
         if (['1', '2', '3'].includes(userInput)) {
           const category = CATEGORIES[userInput];
           formData.category = category;
@@ -246,7 +239,7 @@ export async function processMessage(phoneNumber: string, message: string): Prom
             nextStep = 'full_name';
           }
         } else {
-          responseMessage = formatErrorMessage('category', 'Please select a valid option (1-3).');
+          responseMessage = formatErrorMessage('start', 'Please select a valid option (1-3).');
         }
         break;
         

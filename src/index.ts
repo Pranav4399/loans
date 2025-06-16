@@ -78,4 +78,21 @@ app.listen(PORT, () => {
   logger.info('WhatsApp webhook endpoint: /api/webhook');
   logger.info('Leads API endpoint: /api/leads');
   logger.info('Health check endpoint: /health');
+  
+  // Keep Supabase alive - ping health endpoint every 4 days (safer margin)
+  if (process.env.NODE_ENV === 'production') {
+    const FOUR_DAYS = 4 * 24 * 60 * 60 * 1000; // 4 days in milliseconds
+    
+    setInterval(async () => {
+      try {
+        const url = process.env.WEBHOOK_URL ? `${process.env.WEBHOOK_URL}/health` : `http://localhost:${PORT}/health`;
+        const response = await fetch(url);
+        logger.info(`Keep-alive ping successful: ${response.status}`);
+      } catch (error) {
+        logger.error('Keep-alive ping failed:', error);
+      }
+    }, FOUR_DAYS);
+    
+    logger.info('Supabase keep-alive scheduler started (pings every 4 days)');
+  }
 }); 
