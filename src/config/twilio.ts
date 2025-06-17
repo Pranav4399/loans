@@ -1,5 +1,8 @@
+import dotenv from 'dotenv';
 import twilio from 'twilio';
 import logger from './logger';
+
+dotenv.config();
 
 if (!process.env.TWILIO_ACCOUNT_SID || !process.env.TWILIO_AUTH_TOKEN || !process.env.TWILIO_PHONE_NUMBER) {
   throw new Error('Missing Twilio credentials in environment variables');
