@@ -10,7 +10,7 @@ if (!process.env.GUPSHUP_API_KEY || !process.env.GUPSHUP_APP_NAME) {
 // Gupshup configuration
 export const GUPSHUP_API_KEY = process.env.GUPSHUP_API_KEY;
 export const GUPSHUP_APP_NAME = process.env.GUPSHUP_APP_NAME;
-export const GUPSHUP_BASE_URL = 'https://api.gupshup.io/sm/api/v1';
+export const GUPSHUP_BASE_URL = 'https://api.gupshup.io/wa/api/v1';
 
 // Log configuration (without sensitive data)
 logger.info('Gupshup configuration loaded:', {
@@ -57,7 +57,7 @@ export async function sendWhatsAppMessage(
       formattedTo = '91' + to; // Add India country code
     }
 
-    // Prepare the request payload (using JSON format like ChatGPT suggested)
+    // Prepare the request payload using official Gupshup format
     const payload = {
       channel: 'whatsapp',
       source: GUPSHUP_APP_NAME,
@@ -75,7 +75,7 @@ export async function sendWhatsAppMessage(
       source: GUPSHUP_APP_NAME
     });
 
-    // Send the message via Gupshup API
+    // Send the message via Gupshup API using correct endpoint
     const response = await fetch(`${GUPSHUP_BASE_URL}/msg`, {
       method: 'POST',
       headers: {
