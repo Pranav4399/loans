@@ -69,30 +69,42 @@ app.use((err: Error, req: express.Request, res: express.Response, next: express.
   });
 });
 
-// Start server
+// Start server (only in non-serverless environments)
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  logger.info(`Server is running on port ${PORT}`);
-  logger.info(`Environment: ${process.env.NODE_ENV || 'development'}`);
-  logger.info('Frontend dashboard available at: /');
-  logger.info('WhatsApp webhook endpoint: /api/webhook');
-  logger.info('Leads API endpoint: /api/leads');
-  logger.info('Health check endpoint: /health');
-  
-  // Keep Supabase alive - ping health endpoint every 4 days (safer margin)
-  if (process.env.NODE_ENV === 'production') {
-    const FOUR_DAYS = 4 * 24 * 60 * 60 * 1000; // 4 days in milliseconds
+
+// For serverless environments like Vercel, export the app
+// For traditional hosting, start the server
+if (process.env.VERCEL) {
+  // In Vercel, just export the app
+  logger.info('Running in Vercel serverless environment');
+} else {
+  // In traditional hosting, start the server
+  app.listen(PORT, () => {
+    logger.info(`Server is running on port ${PORT}`);
+    logger.info(`Environment: ${process.env.NODE_ENV || 'development'}`);
+    logger.info('Frontend dashboard available at: /');
+    logger.info('WhatsApp webhook endpoint: /api/webhook');
+    logger.info('Leads API endpoint: /api/leads');
+    logger.info('Health check endpoint: /health');
     
-    setInterval(async () => {
-      try {
-        const url = process.env.WEBHOOK_URL ? `${process.env.WEBHOOK_URL}/health` : `http://localhost:${PORT}/health`;
-        const response = await fetch(url);
-        logger.info(`Keep-alive ping successful: ${response.status}`);
-      } catch (error) {
-        logger.error('Keep-alive ping failed:', error);
-      }
-    }, FOUR_DAYS);
-    
-    logger.info('Supabase keep-alive scheduler started (pings every 4 days)');
-  }
-}); 
+    // Keep Supabase alive - ping health endpoint every 4 days (safer margin)
+    if (process.env.NODE_ENV === 'production') {
+      const FOUR_DAYS = 4 * 24 * 60 * 60 * 1000; // 4 days in milliseconds
+      
+      setInterval(async () => {
+        try {
+          const url = process.env.WEBHOOK_URL ? `${process.env.WEBHOOK_URL}/health` : `http://localhost:${PORT}/health`;
+          const response = await fetch(url);
+          logger.info(`Keep-alive ping successful: ${response.status}`);
+        } catch (error) {
+          logger.error('Keep-alive ping failed:', error);
+        }
+      }, FOUR_DAYS);
+      
+      logger.info('Supabase keep-alive scheduler started (pings every 4 days)');
+    }
+  });
+}
+
+// Export the Express app for serverless environments
+export default app; 
