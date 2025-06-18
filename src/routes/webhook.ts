@@ -22,11 +22,13 @@ router.get('/', (req, res) => {
  */
 router.post('/', async (req, res) => {
   try {
-    // Log the incoming webhook request
+    // Log the incoming webhook request with full details
     logger.info('Received Gupshup webhook request', { 
       userAgent: req.get('User-Agent'),
       contentType: req.get('Content-Type'),
-      body: req.body
+      headers: req.headers,
+      bodyKeys: Object.keys(req.body || {}),
+      body: JSON.stringify(req.body, null, 2)
     });
     
     // Validate that this is a message event from Gupshup
@@ -36,7 +38,9 @@ router.post('/', async (req, res) => {
     }
 
     // Filter out system messages (OPTIN, proxy, etc.)
-    const messageText = req.body.payload?.payload?.text || req.body.payload?.message?.text || '';
+    const messageText = req.body.payload?.payload?.text || 
+                       req.body.payload?.payload?.postbackText || 
+                       req.body.payload?.message?.text || '';
     if (messageText.toLowerCase().includes('optin') || 
         messageText.toLowerCase().includes('proxy') ||
         messageText.toLowerCase().startsWith('system:')) {
@@ -61,7 +65,6 @@ router.post('/', async (req, res) => {
     } else if (errorMessage === 'Missing required fields') {
       res.status(400).json({ error: 'Bad Request: Missing required fields' });
     } else {
-      logger.error('Webhook processing error:', { error });
       res.status(500).json({ error: 'Internal Server Error' });
     }
   }

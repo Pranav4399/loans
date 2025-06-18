@@ -44,9 +44,21 @@ export function formatPhoneNumber(phoneNumber: string): string {
  * Process a WhatsApp message from Gupshup webhook
  */
 export async function processWebhook(body: GupshupWebhookBody): Promise<void> {
+  logger.info('Processing webhook with full body:', { body });
+
   // Validate the webhook body
   if (!validateWebhook(body)) {
-    logger.error('Invalid webhook body', { body });
+    logger.error('Webhook validation failed - Invalid webhook body', { 
+      body,
+      bodyType: typeof body,
+      hasRequiredFields: {
+        type: !!body.type,
+        payload: !!body.payload,
+        source: !!body.payload?.source,
+        sender: !!body.payload?.sender,
+        text: !!(body.payload?.payload?.text || body.payload?.payload?.postbackText || body.payload?.message?.text)
+      }
+    });
     throw new Error('Invalid webhook body');
   }
   
@@ -59,7 +71,17 @@ export async function processWebhook(body: GupshupWebhookBody): Promise<void> {
   const senderName = body.payload.sender.name;
 
   if (!messageBody || !from) {
-    logger.error('Missing required fields in webhook body', { body });
+    logger.error('Missing required fields in webhook body', { 
+      body,
+      messageBody,
+      from,
+      extractedFields: {
+        postbackText: body.payload.payload?.postbackText,
+        payloadText: body.payload.payload?.text,
+        messageText: body.payload.message?.text,
+        senderPhone: body.payload.sender?.phone
+      }
+    });
     throw new Error('Missing required fields');
   }
 

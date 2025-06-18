@@ -156,17 +156,43 @@ export async function sendWhatsAppMessage(
  */
 export function validateWebhook(body: any): boolean {
   try {
+    logger.info('Validating webhook body:', { 
+      bodyType: typeof body,
+      hasType: !!body.type,
+      hasPayload: !!body.payload,
+      hasSource: !!body.payload?.source,
+      hasSender: !!body.payload?.sender,
+      bodyStructure: {
+        type: body.type,
+        payloadKeys: body.payload ? Object.keys(body.payload) : [],
+        payloadPayloadKeys: body.payload?.payload ? Object.keys(body.payload.payload) : [],
+        payloadMessageKeys: body.payload?.message ? Object.keys(body.payload.message) : []
+      }
+    });
+
     // Basic validation - check for required Gupshup webhook fields (flexible structure)
-    const hasText = body.payload?.payload?.text || body.payload?.message?.text;
-    return !!(
+    const hasText = body.payload?.payload?.text || 
+                   body.payload?.payload?.postbackText || 
+                   body.payload?.message?.text;
+    
+    const isValid = !!(
       body.type &&
       body.payload &&
       body.payload.source &&
       body.payload.sender &&
       hasText
     );
+
+    logger.info('Webhook validation result:', { 
+      isValid,
+      hasText: !!hasText,
+      textContent: hasText || 'none',
+      isInteractive: !!body.payload?.payload?.postbackText
+    });
+
+    return isValid;
   } catch (error) {
-    logger.error('Error validating Gupshup webhook:', { error });
+    logger.error('Error validating Gupshup webhook:', { error, body });
     return false;
   }
 }
