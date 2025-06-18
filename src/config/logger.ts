@@ -12,8 +12,8 @@ const levels = {
 // Define log level based on environment
 const level = () => {
   const env = process.env.NODE_ENV || 'development';
-  const isDevelopment = env === 'development';
-  return isDevelopment ? 'debug' : 'warn';
+  // Always show info logs to debug chatbot issues
+  return 'info';
 };
 
 // Define log colors

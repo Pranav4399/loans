@@ -179,6 +179,7 @@ function formatErrorMessage(field: FormStep, error: string): string {
 // Process user response
 export async function processMessage(phoneNumber: string, message: string): Promise<void> {
   try {
+    console.log('=== CHATBOT DEBUG: Starting message processing ===', { phoneNumber, message });
     logger.info('Starting message processing:', { phoneNumber, message });
     
     // Check if we have an existing conversation or need to create one
@@ -246,6 +247,7 @@ export async function processMessage(phoneNumber: string, message: string): Prom
             logger.info('Loans selected, next step: loan_subcategory');
           } else if (category === 'Insurance') {
             nextStep = 'insurance_subcategory';
+            console.log('=== CHATBOT DEBUG: Insurance selected, next step: insurance_subcategory ===');
             logger.info('Insurance selected, next step: insurance_subcategory');
           } else if (category === 'Mutual Funds') {
             // For mutual funds, set the subcategory directly and skip to name step
@@ -433,6 +435,7 @@ export async function processMessage(phoneNumber: string, message: string): Prom
         );
       } else if (nextStep === 'insurance_subcategory') {
         // Send interactive buttons for insurance subcategories instead of text
+        console.log('=== CHATBOT DEBUG: Sending insurance buttons ===');
         await sendInteractiveButtons(
           phoneNumber,
           'What type of insurance are you interested in?',
@@ -445,6 +448,7 @@ export async function processMessage(phoneNumber: string, message: string): Prom
           undefined,
           'Select the insurance type that suits you'
         );
+        console.log('=== CHATBOT DEBUG: Insurance buttons sent successfully ===');
       } else {
         // Send regular text message for all other steps
         logger.info('Sending message:', { 
