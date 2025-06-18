@@ -12,6 +12,13 @@ export const GUPSHUP_API_KEY = process.env.GUPSHUP_API_KEY;
 export const GUPSHUP_APP_NAME = process.env.GUPSHUP_APP_NAME;
 export const GUPSHUP_BASE_URL = 'https://api.gupshup.io/sm/api/v1';
 
+// Log configuration (without sensitive data)
+logger.info('Gupshup configuration loaded:', {
+  hasApiKey: !!GUPSHUP_API_KEY,
+  appName: GUPSHUP_APP_NAME,
+  baseUrl: GUPSHUP_BASE_URL
+});
+
 /**
  * Interface for quick reply option
  */
@@ -44,16 +51,29 @@ export async function sendWhatsAppMessage(
       messageBody = `${message}\n\nQuick replies: ${optionsText}`;
     }
 
+    // Format phone number for Gupshup (ensure it has country code)
+    let formattedTo = to;
+    if (to.length === 10 && !to.startsWith('91')) {
+      formattedTo = '91' + to; // Add India country code
+    }
+
     // Prepare the request payload (using JSON format like ChatGPT suggested)
     const payload = {
       channel: 'whatsapp',
       source: GUPSHUP_APP_NAME,
-      destination: to,
+      destination: formattedTo,
       message: {
         type: 'text',
         text: messageBody
       }
     };
+
+    logger.info('Sending message to Gupshup:', { 
+      originalTo: to,
+      formattedTo,
+      messageLength: messageBody.length,
+      source: GUPSHUP_APP_NAME
+    });
 
     // Send the message via Gupshup API
     const response = await fetch(`${GUPSHUP_BASE_URL}/msg`, {
@@ -65,7 +85,24 @@ export async function sendWhatsAppMessage(
       body: JSON.stringify(payload)
     });
 
-    const result = await response.json();
+    // Get response text first to handle non-JSON responses
+    const responseText = await response.text();
+    logger.info('Gupshup API raw response:', { 
+      status: response.status,
+      statusText: response.statusText,
+      responseText: responseText.substring(0, 500) // Log first 500 chars
+    });
+
+    let result;
+    try {
+      result = JSON.parse(responseText);
+    } catch (parseError) {
+      logger.error('Failed to parse Gupshup response as JSON:', { 
+        responseText: responseText.substring(0, 1000),
+        parseError: parseError instanceof Error ? parseError.message : parseError
+      });
+      throw new Error(`Gupshup API returned invalid JSON: ${responseText.substring(0, 200)}`);
+    }
     
     if (!response.ok) {
       logger.error('Gupshup API error response:', { 
