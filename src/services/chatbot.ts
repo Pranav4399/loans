@@ -191,7 +191,7 @@ export async function processMessage(phoneNumber: string, message: string): Prom
       logger.info('New conversation started, sending welcome message with interactive buttons');
       await sendInteractiveButtons(
         phoneNumber,
-        'Welcome to Andromeda Loans! 🏦\n\nI can help you with:\n\n1. Loans - Personal, Home, Business, Car, Education, Gold\n2. Insurance - Life, Health, Motor, General\n3. Mutual Funds - Investment options\n\nPlease select the service you\'re interested in:',
+        STEP_MESSAGES.start,
         [
           { id: '1', title: 'Loans' },
           { id: '2', title: 'Insurance' },
@@ -238,18 +238,24 @@ export async function processMessage(phoneNumber: string, message: string): Prom
           const category = CATEGORIES[userInput];
           formData.category = category;
           
+          logger.info('Category selected:', { userInput, category, phoneNumber });
+          
           // Determine next step based on category
           if (category === 'Loans') {
             nextStep = 'loan_subcategory';
+            logger.info('Loans selected, next step: loan_subcategory');
           } else if (category === 'Insurance') {
             nextStep = 'insurance_subcategory';
+            logger.info('Insurance selected, next step: insurance_subcategory');
           } else if (category === 'Mutual Funds') {
             // For mutual funds, set the subcategory directly and skip to name step
             formData.subcategory = 'General Inquiry';
             nextStep = 'full_name';
+            logger.info('Mutual Funds selected, subcategory set to General Inquiry, next step: full_name', { formData });
           }
         } else {
           responseMessage = formatErrorMessage('start', 'Please select a valid option (1-3).');
+          logger.warn('Invalid start option selected:', { userInput, phoneNumber });
         }
         break;
         
@@ -302,7 +308,7 @@ export async function processMessage(phoneNumber: string, message: string): Prom
           // Send the start message directly
           await sendInteractiveButtons(
             phoneNumber,
-            'Welcome to Andromeda Loans! 🏦\n\nI can help you with:\n\n1. Loans - Personal, Home, Business, Car, Education, Gold\n2. Insurance - Life, Health, Motor, General\n3. Mutual Funds - Investment options\n\nPlease select the service you\'re interested in:',
+            STEP_MESSAGES.start,
             [
               { id: '1', title: 'Loans' },
               { id: '2', title: 'Insurance' },
@@ -349,6 +355,12 @@ export async function processMessage(phoneNumber: string, message: string): Prom
 
     // Update conversation state
     if (nextStep !== state.current_step || Object.keys(formData).length !== Object.keys(state.form_data).length) {
+      logger.info('Updating conversation state:', { 
+        phoneNumber, 
+        oldStep: state.current_step, 
+        newStep: nextStep, 
+        formData 
+      });
       await updateConversationState({
         phone_number: phoneNumber,
         current_step: nextStep,
@@ -397,12 +409,24 @@ export async function processMessage(phoneNumber: string, message: string): Prom
         responseMessage = `🎉 Thank you, ${userName}!\n\nYour interest in ${subcategoryName} has been recorded. ${productInfo}\n\nA representative will contact you shortly at ${formData.contact_number}.\n\nLearn more about our ${subcategoryName} offerings: ${productLink}\n\nType START if you'd like to inquire about another product.`;
       } else {
         responseMessage = STEP_MESSAGES[nextStep];
+        logger.info('Setting response message from STEP_MESSAGES:', { 
+          nextStep, 
+          messageLength: responseMessage.length,
+          phoneNumber 
+        });
       }
     }
 
     // Send the message
     if (responseMessage) {
+      logger.info('Sending message:', { 
+        phoneNumber, 
+        messageLength: responseMessage.length,
+        messagePreview: responseMessage.substring(0, 100) + '...'
+      });
       await sendWhatsAppMessage(phoneNumber, responseMessage);
+    } else {
+      logger.warn('No response message to send:', { phoneNumber, nextStep, formData });
     }
   } catch (error) {
     logger.error('Error processing message:', { 
