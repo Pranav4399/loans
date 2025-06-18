@@ -37,20 +37,28 @@ const format = winston.format.combine(
   ),
 );
 
-// Define which transports to use
-const transports = [
-  // Write all logs to console
+// Define which transports to use based on environment
+const transports: winston.transport[] = [
+  // Always write logs to console
   new winston.transports.Console(),
-  
-  // Write all errors to error.log
-  new winston.transports.File({
-    filename: 'logs/error.log',
-    level: 'error',
-  }),
-  
-  // Write all logs to combined.log
-  new winston.transports.File({ filename: 'logs/combined.log' }),
 ];
+
+// Only add file transports in development (not in serverless environments like Vercel)
+const env = process.env.NODE_ENV || 'development';
+const isServerless = process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME || process.env.NETLIFY;
+
+if (env === 'development' && !isServerless) {
+  transports.push(
+    // Write all errors to error.log
+    new winston.transports.File({
+      filename: 'logs/error.log',
+      level: 'error',
+    }),
+    
+    // Write all logs to combined.log
+    new winston.transports.File({ filename: 'logs/combined.log' })
+  );
+}
 
 // Create the logger
 const logger = winston.createLogger({
