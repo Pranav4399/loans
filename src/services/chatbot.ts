@@ -382,10 +382,8 @@ export async function processMessage(phoneNumber: string, message: string): Prom
         
         // Generate category-specific messages and links
         let productInfo = '';
-        let productLink = '';
         
         if (categoryName === 'Loans') {
-          productLink = `https://www.andromedaloans.com/loans/${formattedSubcategory}`;
           
           // Add loan-specific information
           if (subcategoryName === 'Personal Loan') {
@@ -398,19 +396,13 @@ export async function processMessage(phoneNumber: string, message: string): Prom
             productInfo = `Our ${subcategoryName} options are designed for optimal flexibility and value.`;
           }
         } else if (categoryName === 'Insurance') {
-          productLink = `https://www.andromedaloans.com/insurance/${formattedSubcategory}`;
           productInfo = `Our ${subcategoryName} plans offer comprehensive coverage at competitive premiums.`;
         } else { // Mutual Funds
-          productLink = 'https://www.andromedaloans.com/mutual-funds';
           productInfo = 'Our mutual fund experts will help you find the right investment options for your goals.';
         }
         
         // Create the personalized message
         responseMessage = `🎉 Thank you, ${userName}!\n\nYour interest in ${subcategoryName} has been recorded. ${productInfo}\n\nA representative will contact you shortly at ${formData.contact_number}.\n\nType START if you'd like to inquire about another product.`;
-      } else if (nextStep === 'loan_subcategory' || nextStep === 'insurance_subcategory') {
-        // For subcategories, we'll send interactive buttons instead of text messages
-        // Don't set responseMessage here, let the button logic handle it
-        logger.info('Subcategory step detected, will send interactive buttons:', { nextStep });
       } else {
         responseMessage = STEP_MESSAGES[nextStep];
         logger.info('Setting response message from STEP_MESSAGES:', { 
@@ -421,44 +413,47 @@ export async function processMessage(phoneNumber: string, message: string): Prom
       }
     }
 
-    // Send the message - use interactive buttons for subcategories
+    // Send the message - check for subcategories and send interactive buttons instead
     if (responseMessage) {
-      logger.info('Sending message:', { 
-        phoneNumber, 
-        messageLength: responseMessage.length,
-        messagePreview: responseMessage.substring(0, 100) + '...'
-      });
-      await sendWhatsAppMessage(phoneNumber, responseMessage);
-    } else if (nextStep === 'loan_subcategory') {
-      // Send interactive buttons for loan subcategories
-      await sendInteractiveButtons(
-        phoneNumber,
-        'What type of loan are you interested in?',
-        [
-          { id: '1', title: 'Personal Loan' },
-          { id: '2', title: 'Business Loan' },
-          { id: '3', title: 'Home Loan' },
-          { id: '4', title: 'Loan Against Property' },
-          { id: '5', title: 'Car Loan' },
-          { id: '6', title: 'Working Capital' }
-        ],
-        undefined,
-        'Select the loan type that fits your needs'
-      );
-    } else if (nextStep === 'insurance_subcategory') {
-      // Send interactive buttons for insurance subcategories
-      await sendInteractiveButtons(
-        phoneNumber,
-        'What type of insurance are you interested in?',
-        [
-          { id: '1', title: 'Health Insurance' },
-          { id: '2', title: 'Motor Vehicle Insurance' },
-          { id: '3', title: 'Life Insurance' },
-          { id: '4', title: 'Property Insurance' }
-        ],
-        undefined,
-        'Select the insurance type that suits you'
-      );
+      if (nextStep === 'loan_subcategory') {
+        // Send interactive buttons for loan subcategories instead of text
+        await sendInteractiveButtons(
+          phoneNumber,
+          'What type of loan are you interested in?',
+          [
+            { id: '1', title: 'Personal Loan' },
+            { id: '2', title: 'Business Loan' },
+            { id: '3', title: 'Home Loan' },
+            { id: '4', title: 'Loan Against Property' },
+            { id: '5', title: 'Car Loan' },
+            { id: '6', title: 'Working Capital' }
+          ],
+          undefined,
+          'Select the loan type that fits your needs'
+        );
+      } else if (nextStep === 'insurance_subcategory') {
+        // Send interactive buttons for insurance subcategories instead of text
+        await sendInteractiveButtons(
+          phoneNumber,
+          'What type of insurance are you interested in?',
+          [
+            { id: '1', title: 'Health Insurance' },
+            { id: '2', title: 'Motor Vehicle Insurance' },
+            { id: '3', title: 'Life Insurance' },
+            { id: '4', title: 'Property Insurance' }
+          ],
+          undefined,
+          'Select the insurance type that suits you'
+        );
+      } else {
+        // Send regular text message for all other steps
+        logger.info('Sending message:', { 
+          phoneNumber, 
+          messageLength: responseMessage.length,
+          messagePreview: responseMessage.substring(0, 100) + '...'
+        });
+        await sendWhatsAppMessage(phoneNumber, responseMessage);
+      }
     } else {
       logger.warn('No response message to send:', { phoneNumber, nextStep, formData });
     }
