@@ -37,12 +37,12 @@ export const MUTUAL_FUND_SUBCATEGORIES: Record<string, SubcategoryType> = {
 // Questions for each step
 export const STEP_MESSAGES: Record<FormStep, StepMessage> = {
   start: '👋 *Welcome to Andromeda*\n\n• 25,000+ financial advisors nationwide\n• 125+ lending partners for best offers\n• Present in 100+ cities across India\n• Rs. 10,000+ CR loans disbursed annually\n• Trusted by 3+ million customers\n• 5000 branches pan india\n\n*Our Products:*\n• 🏦 Loans: Personal, Home, Business & more\n• 🛡️ Insurance: Health, Life, Motor & more\n• 📈 Mutual Funds: Diverse investment options\n\n💰 What financial product are you interested in?',
-
-  loan_subcategory: 'What type of loan are you interested in?',
-
-  insurance_subcategory: 'What type of insurance are you interested in?',
   
-  full_name: '📝 What is your name?\n\nPlease enter your name as it appears on official documents.\nExample: "John" or "John Smith"',
+  // These are placeholder messages - we actually send interactive buttons for these steps
+  loan_subcategory: 'Loading loan options...',
+  insurance_subcategory: 'Loading insurance options...',
+  
+  full_name: '📝 What is your name?\n\nPlease enter your name as it appears on official documents.\nExample: "Balaji" or "Balaji S"',
   
   contact_number: '📱 What is your contact number?\n\nYou can enter with or without country code.\nExamples: "9876543210" or "+919876543210"',
   
@@ -51,9 +51,9 @@ export const STEP_MESSAGES: Record<FormStep, StepMessage> = {
 
 // Help messages for each step
 const HELP_MESSAGES: Record<FormStep, string> = {
-  start: 'Andromeda connects you with the best financial products tailored to your needs through our network of 25,000+ financial advisors. Simply select a number (1-3) to choose the financial product category you\'re interested in. For customer support, call 1800 123 3001.',
-  loan_subcategory: 'Enter a number (1-6) to select the specific loan type you\'re interested in.',
-  insurance_subcategory: 'Enter a number (1-4) to select the specific insurance type you\'re interested in.',
+  start: 'Andromeda connects you with the best financial products tailored to your needs through our network of 25,000+ financial advisors. Simply click one of the buttons to choose the financial product category you\'re interested in. For customer support, call 1800 123 3001.',
+  loan_subcategory: 'Please click one of the loan type buttons to select the specific loan you\'re interested in.',
+  insurance_subcategory: 'Please click one of the insurance type buttons to select the specific insurance you\'re interested in.',
   full_name: 'Please enter your full name as it appears on official documents. You can use letters and spaces.',
   contact_number: 'Enter a valid phone number with country code. This will be used to contact you about your inquiry.',
   confirm: 'Your inquiry has been submitted. You can type START to begin a new inquiry about another product.',
@@ -407,6 +407,10 @@ export async function processMessage(phoneNumber: string, message: string): Prom
         
         // Create the personalized message
         responseMessage = `🎉 Thank you, ${userName}!\n\nYour interest in ${subcategoryName} has been recorded. ${productInfo}\n\nA representative will contact you shortly at ${formData.contact_number}.\n\nType START if you'd like to inquire about another product.`;
+      } else if (nextStep === 'loan_subcategory' || nextStep === 'insurance_subcategory') {
+        // For subcategories, we'll send interactive buttons instead of text messages
+        // Don't set responseMessage here, let the button logic handle it
+        logger.info('Subcategory step detected, will send interactive buttons:', { nextStep });
       } else {
         responseMessage = STEP_MESSAGES[nextStep];
         logger.info('Setting response message from STEP_MESSAGES:', { 
