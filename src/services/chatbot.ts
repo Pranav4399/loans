@@ -1,4 +1,4 @@
-import { sendInteractiveButtons, sendInteractiveList, sendWhatsAppMessage } from '../config/gupshup';
+import { sendInteractiveButtons, sendWhatsAppMessage } from '../config/gupshup';
 import logger from '../config/logger';
 import { createConversationState, getConversationState, updateConversationState } from '../config/supabase';
 import { ConversationState, FormStep, StepMessage } from '../types/chat';
@@ -191,14 +191,14 @@ export async function processMessage(phoneNumber: string, message: string): Prom
       logger.info('New conversation started, sending welcome message with interactive buttons');
       await sendInteractiveButtons(
         phoneNumber,
-        '🏦 Welcome to Andromeda Loans! I\'m here to help you find the perfect financial solution.\n\nPlease select the service you\'re interested in:',
+        'Welcome to Andromeda Loans! 🏦\n\nI can help you with:\n\n1. Loans - Personal, Home, Business, Car, Education, Gold\n2. Insurance - Life, Health, Motor, General\n3. Mutual Funds - Investment options\n\nPlease select the service you\'re interested in:',
         [
-          { id: '1', title: '💰 Loans' },
-          { id: '2', title: '🛡️ Insurance' },
-          { id: '3', title: '📈 Mutual Funds' }
+          { id: '1', title: 'Loans' },
+          { id: '2', title: 'Insurance' },
+          { id: '3', title: 'Mutual Funds' }
         ],
-        '🏦 Andromeda Loans',
-        'Select an option to get started!'
+        undefined, // No header
+        'Select an option to get started'
       );
       
       // Set the state to start so the user's first message will be processed as category selection
@@ -223,7 +223,7 @@ export async function processMessage(phoneNumber: string, message: string): Prom
     const navigationResult = await handleNavigationCommand(userInput, state, phoneNumber);
     if (navigationResult.handled) {
       logger.info('Handled navigation command:', { command: userInput });
-      await sendInteractiveMessage(phoneNumber, state.current_step);
+      await sendWhatsAppMessage(phoneNumber, STEP_MESSAGES[state.current_step]);
       return;
     }
 
@@ -300,7 +300,17 @@ export async function processMessage(phoneNumber: string, message: string): Prom
           });
           
           // Send the start message directly
-          await sendInteractiveMessage(phoneNumber, 'start');
+          await sendInteractiveButtons(
+            phoneNumber,
+            'Welcome to Andromeda Loans! 🏦\n\nI can help you with:\n\n1. Loans - Personal, Home, Business, Car, Education, Gold\n2. Insurance - Life, Health, Motor, General\n3. Mutual Funds - Investment options\n\nPlease select the service you\'re interested in:',
+            [
+              { id: '1', title: 'Loans' },
+              { id: '2', title: 'Insurance' },
+              { id: '3', title: 'Mutual Funds' }
+            ],
+            undefined, // No header
+            'Select an option to get started'
+          );
           return;
         } else {
           responseMessage = 'Your inquiry has been submitted. Type START to begin a new inquiry.';
@@ -390,78 +400,22 @@ export async function processMessage(phoneNumber: string, message: string): Prom
       }
     }
 
-    // Send the message with quick replies if available
-    await sendInteractiveMessage(phoneNumber, nextStep);
+    // Send the message
+    if (responseMessage) {
+      await sendWhatsAppMessage(phoneNumber, responseMessage);
+    }
   } catch (error) {
     logger.error('Error processing message:', { 
-      error: error instanceof Error ? {
-        name: error.name,
-        message: error.message,
-        stack: error.stack
-      } : error,
-      phoneNumber,
+      error: error instanceof Error ? error.message : 'Unknown error', 
+      phoneNumber, 
       message 
     });
     
     // Send a more detailed error message to help with debugging
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    await sendInteractiveMessage(phoneNumber, 'start');
-  }
-}
-
-// Helper function to send interactive messages based on step
-async function sendInteractiveMessage(phoneNumber: string, step: FormStep): Promise<void> {
-  switch (step) {
-    case 'start':
-      await sendInteractiveButtons(
-        phoneNumber,
-        '🏦 Welcome to Andromeda Loans! I\'m here to help you find the perfect financial solution.\n\nPlease select the service you\'re interested in:',
-        [
-          { id: '1', title: '💰 Loans' },
-          { id: '2', title: '🛡️ Insurance' },
-          { id: '3', title: '📈 Mutual Funds' }
-        ],
-        '🏦 Andromeda Loans',
-        'Select an option to get started!'
-      );
-      break;
-      
-    case 'loan_subcategory':
-      await sendInteractiveList(
-        phoneNumber,
-        '💰 Great choice! Please select the type of loan you\'re interested in:',
-        [
-          { id: '1', title: 'Personal Loan', description: 'For personal expenses' },
-          { id: '2', title: 'Home Loan', description: 'For buying or renovating home' },
-          { id: '3', title: 'Business Loan', description: 'For business needs' },
-          { id: '4', title: 'Car Loan', description: 'For vehicle purchase' },
-          { id: '5', title: 'Education Loan', description: 'For educational expenses' },
-          { id: '6', title: 'Gold Loan', description: 'Against gold collateral' }
-        ],
-        'Select Loan Type',
-        '💰 Loan Options',
-        'Choose the loan that best fits your needs'
-      );
-      break;
-      
-    case 'insurance_subcategory':
-      await sendInteractiveButtons(
-        phoneNumber,
-        '🛡️ Excellent! Please select the type of insurance you\'re looking for:',
-        [
-          { id: '1', title: 'Life Insurance' },
-          { id: '2', title: 'Health Insurance' },
-          { id: '3', title: 'Motor Insurance' },
-          { id: '4', title: 'General Insurance' }
-        ],
-        '🛡️ Insurance Options',
-        'Protect what matters most to you'
-      );
-      break;
-      
-    default:
-      // For other steps, use regular text messages
-      await sendWhatsAppMessage(phoneNumber, STEP_MESSAGES[step]);
-      break;
+    await sendWhatsAppMessage(
+      phoneNumber,
+      `Sorry, we encountered an error: ${errorMessage}\n\nPlease type RESTART to begin again or contact support if the issue persists.`
+    );
   }
 } 
