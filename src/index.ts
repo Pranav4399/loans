@@ -16,6 +16,9 @@ dotenv.config();
 // Initialize Express app
 const app = express();
 
+// Trust proxy for serverless environments (Vercel, etc.)
+app.set('trust proxy', true);
+
 // Production middleware
 if (process.env.NODE_ENV === 'production') {
   // Enable compression
