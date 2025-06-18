@@ -3,19 +3,21 @@ import logger from './logger';
 
 dotenv.config();
 
-if (!process.env.GUPSHUP_API_KEY || !process.env.GUPSHUP_APP_NAME) {
-  throw new Error('Missing Gupshup credentials in environment variables');
+if (!process.env.GUPSHUP_API_KEY || !process.env.GUPSHUP_APP_NAME || !process.env.GUPSHUP_SOURCE_NUMBER) {
+  throw new Error('Missing Gupshup credentials in environment variables (GUPSHUP_API_KEY, GUPSHUP_APP_NAME, GUPSHUP_SOURCE_NUMBER)');
 }
 
 // Gupshup configuration
 export const GUPSHUP_API_KEY = process.env.GUPSHUP_API_KEY;
 export const GUPSHUP_APP_NAME = process.env.GUPSHUP_APP_NAME;
+export const GUPSHUP_SOURCE_NUMBER = process.env.GUPSHUP_SOURCE_NUMBER;
 export const GUPSHUP_BASE_URL = 'https://api.gupshup.io/wa/api/v1';
 
 // Log configuration (without sensitive data)
 logger.info('Gupshup configuration loaded:', {
   hasApiKey: !!GUPSHUP_API_KEY,
   appName: GUPSHUP_APP_NAME,
+  hasSourceNumber: !!GUPSHUP_SOURCE_NUMBER,
   baseUrl: GUPSHUP_BASE_URL
 });
 
@@ -60,7 +62,7 @@ export async function sendWhatsAppMessage(
     // Prepare the form data as required by Gupshup API
     const formData = new URLSearchParams();
     formData.append('channel', 'whatsapp');
-    formData.append('source', GUPSHUP_APP_NAME);
+    formData.append('source', GUPSHUP_SOURCE_NUMBER);
     formData.append('destination', formattedTo);
     formData.append('src.name', GUPSHUP_APP_NAME);
     formData.append('message', JSON.stringify({
@@ -72,7 +74,8 @@ export async function sendWhatsAppMessage(
       originalTo: to,
       formattedTo,
       messageLength: messageBody.length,
-      source: GUPSHUP_APP_NAME
+      source: GUPSHUP_SOURCE_NUMBER,
+      appName: GUPSHUP_APP_NAME
     });
 
     // Send the message via Gupshup API using correct format
