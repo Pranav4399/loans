@@ -1,6 +1,6 @@
+import { sendWhatsAppMessage } from '../config/gupshup';
 import logger from '../config/logger';
 import { createConversationState, getConversationState, updateConversationState } from '../config/supabase';
-import { sendWhatsAppMessage } from '../config/twilio';
 import { ConversationState, FormStep, StepMessage } from '../types/chat';
 import { CategoryType, SubcategoryType } from '../types/database';
 import { validators } from '../utils/validation';

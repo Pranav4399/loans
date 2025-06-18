@@ -1,7 +1,7 @@
 {
   "name": "balan",
   "version": "1.0.0",
-  "description": "WhatsApp chatbot for loan applications",
+  "description": "WhatsApp chatbot for loan applications using Gupshup",
   "main": "dist/index.js",
   "engines": {
     "node": ">=16.0.0",
@@ -33,7 +33,6 @@
     "express-rate-limit": "^7.5.0",
     "helmet": "^7.2.0",
     "ts-node": "^10.x",
-    "twilio": "^4.x",
     "typescript": "^5.x",
     "winston": "^3.17.0"
   }
