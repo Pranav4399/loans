@@ -28,7 +28,15 @@ export interface GupshupWebhookBody {
  */
 export function formatPhoneNumber(phoneNumber: string): string {
   // Remove any prefixes and spaces, keep just the number
-  return phoneNumber.replace(/\D/g, '').replace(/^91/, ''); // Remove country code for India
+  let cleaned = phoneNumber.replace(/\D/g, '');
+  
+  // For Indian numbers, ensure we have the right format
+  if (cleaned.startsWith('91') && cleaned.length === 12) {
+    cleaned = cleaned.substring(2); // Remove country code for database storage
+  }
+  
+  logger.info('Phone number formatting:', { original: phoneNumber, cleaned });
+  return cleaned;
 }
 
 /**

@@ -68,7 +68,13 @@ export async function sendWhatsAppMessage(
     const result = await response.json();
     
     if (!response.ok) {
-      throw new Error(`Gupshup API error: ${result.message || 'Unknown error'}`);
+      logger.error('Gupshup API error response:', { 
+        status: response.status,
+        statusText: response.statusText,
+        result,
+        payload 
+      });
+      throw new Error(`Gupshup API error: ${result.message || response.statusText || 'Unknown error'}`);
     }
 
     logger.info('WhatsApp message sent via Gupshup:', { 
@@ -79,7 +85,11 @@ export async function sendWhatsAppMessage(
     
     return result;
   } catch (error) {
-    logger.error('Error sending WhatsApp message via Gupshup:', { error });
+    logger.error('Error sending WhatsApp message via Gupshup:', { 
+      error: error instanceof Error ? error.message : error,
+      to,
+      message
+    });
     throw error;
   }
 }

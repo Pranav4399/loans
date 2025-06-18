@@ -34,6 +34,15 @@ router.post('/', async (req, res) => {
       logger.info('Ignoring non-message webhook event', { type: req.body.type });
       return res.status(200).json({ status: 'ignored' });
     }
+
+    // Filter out system messages (OPTIN, proxy, etc.)
+    const messageText = req.body.payload?.payload?.text || req.body.payload?.message?.text || '';
+    if (messageText.toLowerCase().includes('optin') || 
+        messageText.toLowerCase().includes('proxy') ||
+        messageText.toLowerCase().startsWith('system:')) {
+      logger.info('Ignoring system message', { messageText });
+      return res.status(200).json({ status: 'system_message_ignored' });
+    }
     
     // Type the request body as Gupshup webhook
     const body = req.body as GupshupWebhookBody;
