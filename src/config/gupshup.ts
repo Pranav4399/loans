@@ -57,16 +57,16 @@ export async function sendWhatsAppMessage(
       formattedTo = '91' + to; // Add India country code
     }
 
-    // Prepare the request payload using official Gupshup format
-    const payload = {
-      channel: 'whatsapp',
-      source: GUPSHUP_APP_NAME,
-      destination: formattedTo,
-      message: {
-        type: 'text',
-        text: messageBody
-      }
-    };
+    // Prepare the form data as required by Gupshup API
+    const formData = new URLSearchParams();
+    formData.append('channel', 'whatsapp');
+    formData.append('source', GUPSHUP_APP_NAME);
+    formData.append('destination', formattedTo);
+    formData.append('src.name', GUPSHUP_APP_NAME);
+    formData.append('message', JSON.stringify({
+      type: 'text',
+      text: messageBody
+    }));
 
     logger.info('Sending message to Gupshup:', { 
       originalTo: to,
@@ -75,14 +75,14 @@ export async function sendWhatsAppMessage(
       source: GUPSHUP_APP_NAME
     });
 
-    // Send the message via Gupshup API using correct endpoint
+    // Send the message via Gupshup API using correct format
     const response = await fetch(`${GUPSHUP_BASE_URL}/msg`, {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
+        'Content-Type': 'application/x-www-form-urlencoded',
         'apikey': GUPSHUP_API_KEY
       },
-      body: JSON.stringify(payload)
+      body: formData
     });
 
     // Get response text first to handle non-JSON responses
@@ -109,7 +109,7 @@ export async function sendWhatsAppMessage(
         status: response.status,
         statusText: response.statusText,
         result,
-        payload 
+        formData: Object.fromEntries(formData)
       });
       throw new Error(`Gupshup API error: ${result.message || response.statusText || 'Unknown error'}`);
     }
