@@ -30,6 +30,21 @@ export interface QuickReplyOption {
 }
 
 /**
+ * Format phone number for Gupshup API
+ */
+function formatPhoneNumber(phoneNumber: string): string {
+  // Remove any non-numeric characters
+  const cleaned = phoneNumber.replace(/\D/g, '');
+  
+  // If it doesn't start with country code, add India country code (91)
+  if (!cleaned.startsWith('91') && cleaned.length === 10) {
+    return `91${cleaned}`;
+  }
+  
+  return cleaned;
+}
+
+/**
  * Send a WhatsApp message via Gupshup API
  * @param to Recipient phone number (without country code prefix)
  * @param message Message text
@@ -153,5 +168,167 @@ export function validateWebhook(body: any): boolean {
   } catch (error) {
     logger.error('Error validating Gupshup webhook:', { error });
     return false;
+  }
+}
+
+/**
+ * Send interactive quick reply buttons message via Gupshup API
+ */
+export async function sendInteractiveButtons(
+  phoneNumber: string, 
+  bodyText: string, 
+  buttons: Array<{ id: string; title: string }>,
+  headerText?: string,
+  footerText?: string
+): Promise<void> {
+  const formattedPhoneNumber = formatPhoneNumber(phoneNumber);
+  
+  const messagePayload = {
+    type: 'quick_reply',
+    content: {
+      type: 'text',
+      ...(headerText && { header: headerText }),
+      text: bodyText,
+      ...(footerText && { caption: footerText })
+    },
+    options: buttons.map(button => ({
+      type: 'text',
+      title: button.title,
+      postbackText: button.id
+    }))
+  };
+
+  const formData = new URLSearchParams({
+    channel: 'whatsapp',
+    source: GUPSHUP_SOURCE_NUMBER,
+    destination: formattedPhoneNumber,
+    message: JSON.stringify(messagePayload),
+    'src.name': GUPSHUP_APP_NAME
+  });
+
+  try {
+    const response = await fetch(`${GUPSHUP_BASE_URL}/msg`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'apikey': GUPSHUP_API_KEY,
+      },
+      body: formData.toString()
+    });
+
+    const responseText = await response.text();
+    
+    if (!response.ok) {
+      logger.error('Gupshup API error response:', responseText);
+      throw new Error(`Gupshup API error: ${responseText}`);
+    }
+
+    // Try to parse as JSON, but handle non-JSON responses
+    try {
+      const result = JSON.parse(responseText);
+      logger.info('Interactive buttons sent successfully via Gupshup:', { 
+        phoneNumber: formattedPhoneNumber,
+        messageId: result.messageId,
+        buttons: buttons.length
+      });
+    } catch (parseError) {
+      // If response is not JSON but request was successful, log it
+      logger.info('Interactive buttons sent successfully (non-JSON response):', { 
+        phoneNumber: formattedPhoneNumber,
+        response: responseText,
+        buttons: buttons.length
+      });
+    }
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    logger.error('Error sending interactive buttons via Gupshup:', { 
+      error: errorMessage,
+      phoneNumber: formattedPhoneNumber 
+    });
+    throw new Error(`Failed to send interactive buttons: ${errorMessage}`);
+  }
+}
+
+/**
+ * Send interactive list message via Gupshup API (for more than 3 options)
+ */
+export async function sendInteractiveList(
+  phoneNumber: string, 
+  bodyText: string, 
+  items: Array<{ id: string; title: string; description?: string }>,
+  buttonText: string = 'Select Option',
+  headerText?: string,
+  footerText?: string
+): Promise<void> {
+  const formattedPhoneNumber = formatPhoneNumber(phoneNumber);
+  
+  const messagePayload = {
+    type: 'list',
+    title: headerText || 'Please select an option',
+    body: bodyText,
+    ...(footerText && { footer: footerText }),
+    globalButtons: [{
+      type: 'text',
+      title: buttonText
+    }],
+    items: [{
+      title: 'Options',
+      options: items.map(item => ({
+        type: 'text',
+        title: item.title,
+        ...(item.description && { description: item.description }),
+        postbackText: item.id
+      }))
+    }]
+  };
+
+  const formData = new URLSearchParams({
+    channel: 'whatsapp',
+    source: GUPSHUP_SOURCE_NUMBER,
+    destination: formattedPhoneNumber,
+    message: JSON.stringify(messagePayload),
+    'src.name': GUPSHUP_APP_NAME
+  });
+
+  try {
+    const response = await fetch(`${GUPSHUP_BASE_URL}/msg`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'apikey': GUPSHUP_API_KEY,
+      },
+      body: formData.toString()
+    });
+
+    const responseText = await response.text();
+    
+    if (!response.ok) {
+      logger.error('Gupshup API error response:', responseText);
+      throw new Error(`Gupshup API error: ${responseText}`);
+    }
+
+    // Try to parse as JSON, but handle non-JSON responses
+    try {
+      const result = JSON.parse(responseText);
+      logger.info('Interactive list sent successfully via Gupshup:', { 
+        phoneNumber: formattedPhoneNumber,
+        messageId: result.messageId,
+        items: items.length
+      });
+    } catch (parseError) {
+      // If response is not JSON but request was successful, log it
+      logger.info('Interactive list sent successfully (non-JSON response):', { 
+        phoneNumber: formattedPhoneNumber,
+        response: responseText,
+        items: items.length
+      });
+    }
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    logger.error('Error sending interactive list via Gupshup:', { 
+      error: errorMessage,
+      phoneNumber: formattedPhoneNumber 
+    });
+    throw new Error(`Failed to send interactive list: ${errorMessage}`);
   }
 } 

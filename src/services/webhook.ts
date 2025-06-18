@@ -11,6 +11,7 @@ export interface GupshupWebhookBody {
     type: string;
     payload?: {
       text: string;
+      postbackText?: string; // For interactive button responses
     };
     message?: {
       text: string;
@@ -50,7 +51,10 @@ export async function processWebhook(body: GupshupWebhookBody): Promise<void> {
   }
   
   // Extract message details from Gupshup format (handle both possible structures)
-  const messageBody = body.payload.payload?.text || body.payload.message?.text || '';
+  // Prioritize interactive button responses (postbackText) over regular text
+  const messageBody = body.payload.payload?.postbackText || 
+                     body.payload.payload?.text || 
+                     body.payload.message?.text || '';
   const from = formatPhoneNumber(body.payload.sender.phone);
   const senderName = body.payload.sender.name;
 
@@ -63,7 +67,8 @@ export async function processWebhook(body: GupshupWebhookBody): Promise<void> {
     from,
     messageBody,
     senderName,
-    messageId: body.payload.id
+    messageId: body.payload.id,
+    isInteractive: !!body.payload.payload?.postbackText
   });
 
   // Process the message through chatbot service
