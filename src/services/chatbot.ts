@@ -36,11 +36,11 @@ export const MUTUAL_FUND_SUBCATEGORIES: Record<string, SubcategoryType> = {
 
 // Questions for each step
 export const STEP_MESSAGES: Record<FormStep, StepMessage> = {
-  start: '👋 *Welcome to Andromeda*\n\n• 25,000+ financial advisors nationwide\n• 125+ lending partners for best offers\n• Present in 100+ cities across India\n• Rs. 10,000+ CR loans disbursed annually\n• Trusted by 3+ million customers\n• 5000 branches pan india\n\n*Our Products:*\n• 🏦 Loans: Personal, Home, Business & more\n• 🛡️ Insurance: Health, Life, Motor & more\n• 📈 Mutual Funds: Diverse investment options\n\n💰 What financial product are you interested in?\n\nChoose from these options:\n1️⃣ Loans\n2️⃣ Insurance\n3️⃣ Mutual Funds\n\nReply with the number (1-3)\n\n💬 Type *HELP* anytime for assistance.',
+  start: '👋 *Welcome to Andromeda*\n\n• 25,000+ financial advisors nationwide\n• 125+ lending partners for best offers\n• Present in 100+ cities across India\n• Rs. 10,000+ CR loans disbursed annually\n• Trusted by 3+ million customers\n• 5000 branches pan india\n\n*Our Products:*\n• 🏦 Loans: Personal, Home, Business & more\n• 🛡️ Insurance: Health, Life, Motor & more\n• 📈 Mutual Funds: Diverse investment options\n\n💰 What financial product are you interested in?',
 
-  loan_subcategory: '🏦 What type of loan are you interested in?\n\nChoose from these options:\n1️⃣ Personal Loan\n2️⃣ Business Loan\n3️⃣ Home Loan\n4️⃣ Loan Against Property\n5️⃣ Car Loan\n6️⃣ Working Capital\n\nReply with the number (1-6)',
+  loan_subcategory: 'What type of loan are you interested in?',
 
-  insurance_subcategory: '🛡️ What type of insurance are you interested in?\n\nChoose from these options:\n1️⃣ Health Insurance\n2️⃣ Motor Vehicle Insurance\n3️⃣ Life Insurance\n4️⃣ Property Insurance\n\nReply with the number (1-4)',
+  insurance_subcategory: 'What type of insurance are you interested in?',
   
   full_name: '📝 What is your name?\n\nPlease enter your name as it appears on official documents.\nExample: "John" or "John Smith"',
   
@@ -406,7 +406,7 @@ export async function processMessage(phoneNumber: string, message: string): Prom
         }
         
         // Create the personalized message
-        responseMessage = `🎉 Thank you, ${userName}!\n\nYour interest in ${subcategoryName} has been recorded. ${productInfo}\n\nA representative will contact you shortly at ${formData.contact_number}.\n\nLearn more about our ${subcategoryName} offerings: ${productLink}\n\nType START if you'd like to inquire about another product.`;
+        responseMessage = `🎉 Thank you, ${userName}!\n\nYour interest in ${subcategoryName} has been recorded. ${productInfo}\n\nA representative will contact you shortly at ${formData.contact_number}.\n\nType START if you'd like to inquire about another product.`;
       } else {
         responseMessage = STEP_MESSAGES[nextStep];
         logger.info('Setting response message from STEP_MESSAGES:', { 
@@ -417,7 +417,7 @@ export async function processMessage(phoneNumber: string, message: string): Prom
       }
     }
 
-    // Send the message
+    // Send the message - use interactive buttons for subcategories
     if (responseMessage) {
       logger.info('Sending message:', { 
         phoneNumber, 
@@ -425,6 +425,36 @@ export async function processMessage(phoneNumber: string, message: string): Prom
         messagePreview: responseMessage.substring(0, 100) + '...'
       });
       await sendWhatsAppMessage(phoneNumber, responseMessage);
+    } else if (nextStep === 'loan_subcategory') {
+      // Send interactive buttons for loan subcategories
+      await sendInteractiveButtons(
+        phoneNumber,
+        'What type of loan are you interested in?',
+        [
+          { id: '1', title: 'Personal Loan' },
+          { id: '2', title: 'Business Loan' },
+          { id: '3', title: 'Home Loan' },
+          { id: '4', title: 'Loan Against Property' },
+          { id: '5', title: 'Car Loan' },
+          { id: '6', title: 'Working Capital' }
+        ],
+        undefined,
+        'Select the loan type that fits your needs'
+      );
+    } else if (nextStep === 'insurance_subcategory') {
+      // Send interactive buttons for insurance subcategories
+      await sendInteractiveButtons(
+        phoneNumber,
+        'What type of insurance are you interested in?',
+        [
+          { id: '1', title: 'Health Insurance' },
+          { id: '2', title: 'Motor Vehicle Insurance' },
+          { id: '3', title: 'Life Insurance' },
+          { id: '4', title: 'Property Insurance' }
+        ],
+        undefined,
+        'Select the insurance type that suits you'
+      );
     } else {
       logger.warn('No response message to send:', { phoneNumber, nextStep, formData });
     }
