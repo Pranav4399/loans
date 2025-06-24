@@ -85,12 +85,16 @@ export async function sendWhatsAppMessage(
       text: messageBody
     }));
 
-    logger.info('Sending message to Gupshup:', { 
+    console.log('=== GUPSHUP DEBUG: Sending message to Gupshup ===', { 
       originalTo: to,
       formattedTo,
       messageLength: messageBody.length,
       source: GUPSHUP_SOURCE_NUMBER,
-      appName: GUPSHUP_APP_NAME
+      appName: GUPSHUP_APP_NAME,
+      messagePreview: messageBody.substring(0, 100) + (messageBody.length > 100 ? '...' : ''),
+      url: `${GUPSHUP_BASE_URL}/msg`,
+      hasApiKey: !!GUPSHUP_API_KEY,
+      apiKeyPrefix: GUPSHUP_API_KEY ? GUPSHUP_API_KEY.substring(0, 8) + '...' : 'MISSING'
     });
 
     // Send the message via Gupshup API using correct format
@@ -105,42 +109,53 @@ export async function sendWhatsAppMessage(
 
     // Get response text first to handle non-JSON responses
     const responseText = await response.text();
-    logger.info('Gupshup API raw response:', { 
+    console.log('=== GUPSHUP DEBUG: API raw response ===', { 
       status: response.status,
       statusText: response.statusText,
-      responseText: responseText.substring(0, 500) // Log first 500 chars
+      responseText: responseText, // Log full response for debugging
+      responseLength: responseText.length,
+      headers: Object.fromEntries(response.headers.entries())
     });
 
     let result;
     try {
       result = JSON.parse(responseText);
+      console.log('=== GUPSHUP DEBUG: Parsed response ===', { 
+        result,
+        hasMessageId: !!result.messageId,
+        hasStatus: !!result.status,
+        hasErrors: !!result.errors
+      });
     } catch (parseError) {
-      logger.error('Failed to parse Gupshup response as JSON:', { 
-        responseText: responseText.substring(0, 1000),
+      console.error('=== GUPSHUP ERROR: Failed to parse response as JSON ===', { 
+        responseText: responseText,
         parseError: parseError instanceof Error ? parseError.message : parseError
       });
       throw new Error(`Gupshup API returned invalid JSON: ${responseText.substring(0, 200)}`);
     }
     
     if (!response.ok) {
-      logger.error('Gupshup API error response:', { 
+      console.error('=== GUPSHUP ERROR: API error response ===', { 
         status: response.status,
         statusText: response.statusText,
         result,
-        formData: Object.fromEntries(formData)
+        formDataEntries: Object.fromEntries(formData),
+        fullResponse: responseText
       });
       throw new Error(`Gupshup API error: ${result.message || response.statusText || 'Unknown error'}`);
     }
 
-    logger.info('WhatsApp message sent via Gupshup:', { 
+    console.log('=== GUPSHUP DEBUG: Message sent successfully ===', { 
       to, 
+      formattedTo,
       messageId: result.messageId,
-      status: result.status 
+      status: result.status,
+      fullResult: result
     });
     
     return result;
   } catch (error) {
-    logger.error('Error sending WhatsApp message via Gupshup:', { 
+    console.error('=== GUPSHUP ERROR: Failed to send message ===', { 
       error: error instanceof Error ? error.message : error,
       to,
       message
