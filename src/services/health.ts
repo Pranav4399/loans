@@ -1,5 +1,3 @@
-import logger from '../config/logger';
-
 /**
  * Get application health status
  * @returns Health check information
@@ -15,10 +13,8 @@ export function getHealthStatus() {
       }
     };
     
-    logger.info('Health check successful');
     return healthInfo;
   } catch (error) {
-    logger.error('Health check failed:', { error });
     throw error;
   }
 } 

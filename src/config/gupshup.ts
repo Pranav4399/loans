@@ -1,5 +1,4 @@
 import dotenv from 'dotenv';
-import logger from './logger';
 
 dotenv.config();
 
@@ -12,14 +11,6 @@ export const GUPSHUP_API_KEY = process.env.GUPSHUP_API_KEY;
 export const GUPSHUP_APP_NAME = process.env.GUPSHUP_APP_NAME;
 export const GUPSHUP_SOURCE_NUMBER = process.env.GUPSHUP_SOURCE_NUMBER;
 export const GUPSHUP_BASE_URL = 'https://api.gupshup.io/wa/api/v1';
-
-// Log configuration (without sensitive data)
-logger.info('Gupshup configuration loaded:', {
-  hasApiKey: !!GUPSHUP_API_KEY,
-  appName: GUPSHUP_APP_NAME,
-  hasSourceNumber: !!GUPSHUP_SOURCE_NUMBER,
-  baseUrl: GUPSHUP_BASE_URL
-});
 
 /**
  * Interface for quick reply option
@@ -171,20 +162,6 @@ export async function sendWhatsAppMessage(
  */
 export function validateWebhook(body: any): boolean {
   try {
-    logger.info('Validating webhook body:', { 
-      bodyType: typeof body,
-      hasType: !!body.type,
-      hasPayload: !!body.payload,
-      hasSource: !!body.payload?.source,
-      hasSender: !!body.payload?.sender,
-      bodyStructure: {
-        type: body.type,
-        payloadKeys: body.payload ? Object.keys(body.payload) : [],
-        payloadPayloadKeys: body.payload?.payload ? Object.keys(body.payload.payload) : [],
-        payloadMessageKeys: body.payload?.message ? Object.keys(body.payload.message) : []
-      }
-    });
-
     // Basic validation - check for required Gupshup webhook fields (flexible structure)
     const hasText = body.payload?.payload?.text || 
                    body.payload?.payload?.postbackText || 
@@ -198,16 +175,9 @@ export function validateWebhook(body: any): boolean {
       hasText
     );
 
-    logger.info('Webhook validation result:', { 
-      isValid,
-      hasText: !!hasText,
-      textContent: hasText || 'none',
-      isInteractive: !!body.payload?.payload?.postbackText
-    });
-
     return isValid;
   } catch (error) {
-    logger.error('Error validating Gupshup webhook:', { error, body });
+    console.error('=== GUPSHUP ERROR: Webhook validation failed ===', { error, body });
     return false;
   }
 }
@@ -260,21 +230,21 @@ export async function sendInteractiveButtons(
     const responseText = await response.text();
     
     if (!response.ok) {
-      logger.error('Gupshup API error response:', responseText);
+      console.error('Gupshup API error response:', responseText);
       throw new Error(`Gupshup API error: ${responseText}`);
     }
 
     // Try to parse as JSON, but handle non-JSON responses
     try {
       const result = JSON.parse(responseText);
-      logger.info('Interactive buttons sent successfully via Gupshup:', { 
+      console.log('Interactive buttons sent successfully via Gupshup:', { 
         phoneNumber: formattedPhoneNumber,
         messageId: result.messageId,
         buttons: buttons.length
       });
     } catch (parseError) {
       // If response is not JSON but request was successful, log it
-      logger.info('Interactive buttons sent successfully (non-JSON response):', { 
+      console.log('Interactive buttons sent successfully (non-JSON response):', { 
         phoneNumber: formattedPhoneNumber,
         response: responseText,
         buttons: buttons.length
@@ -282,7 +252,7 @@ export async function sendInteractiveButtons(
     }
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    logger.error('Error sending interactive buttons via Gupshup:', { 
+    console.error('Error sending interactive buttons via Gupshup:', { 
       error: errorMessage,
       phoneNumber: formattedPhoneNumber 
     });
@@ -344,21 +314,21 @@ export async function sendInteractiveList(
     const responseText = await response.text();
     
     if (!response.ok) {
-      logger.error('Gupshup API error response:', responseText);
+      console.error('Gupshup API error response:', responseText);
       throw new Error(`Gupshup API error: ${responseText}`);
     }
 
     // Try to parse as JSON, but handle non-JSON responses
     try {
       const result = JSON.parse(responseText);
-      logger.info('Interactive list sent successfully via Gupshup:', { 
+      console.log('Interactive list sent successfully via Gupshup:', { 
         phoneNumber: formattedPhoneNumber,
         messageId: result.messageId,
         items: items.length
       });
     } catch (parseError) {
       // If response is not JSON but request was successful, log it
-      logger.info('Interactive list sent successfully (non-JSON response):', { 
+      console.log('Interactive list sent successfully (non-JSON response):', { 
         phoneNumber: formattedPhoneNumber,
         response: responseText,
         items: items.length
@@ -366,7 +336,7 @@ export async function sendInteractiveList(
     }
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    logger.error('Error sending interactive list via Gupshup:', { 
+    console.error('Error sending interactive list via Gupshup:', { 
       error: errorMessage,
       phoneNumber: formattedPhoneNumber 
     });

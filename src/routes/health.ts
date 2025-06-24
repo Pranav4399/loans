@@ -1,5 +1,4 @@
 import { Router } from 'express';
-import logger from '../config/logger';
 import { getHealthStatus } from '../services/health';
 
 const router = Router();
@@ -14,8 +13,6 @@ router.get('/', (req, res) => {
     
     res.status(200).json(healthInfo);
   } catch (error) {
-    logger.error('Health check endpoint error:', { error });
-    
     res.status(503).json({
       uptime: process.uptime(),
       message: 'ERROR',

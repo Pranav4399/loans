@@ -1,11 +1,9 @@
-import logger from '../config/logger';
 import { LEADS_TABLE, supabaseAdmin } from '../config/supabase';
 import { LeadInfo } from '../types/database';
 import { formatPhoneNumber } from './webhook';
 
-/**
- * Interface for query options to filter and paginate leads
- */
+
+// Define the query options interface
 export interface LeadQueryOptions {
   page?: number;
   limit?: number;
@@ -15,7 +13,7 @@ export interface LeadQueryOptions {
 }
 
 /**
- * Get all leads with optional filtering and pagination
+ * Get all leads with optional filtering, pagination, and search
  */
 export async function getAllLeads({ 
   page = 1, 
@@ -28,12 +26,12 @@ export async function getAllLeads({
     // Calculate pagination
     const offset = (page - 1) * limit;
     
-    // Start building query
+    // Build the query
     let query = supabaseAdmin
       .from(LEADS_TABLE)
       .select('*', { count: 'exact' });
     
-    // Apply filters if provided
+    // Apply filters
     if (status) {
       query = query.eq('status', status);
     }
@@ -58,7 +56,6 @@ export async function getAllLeads({
       .range(offset, offset + limit - 1);
     
     if (error) {
-      logger.error('Error fetching leads from database:', { error });
       throw new Error(`Failed to fetch leads: ${error.message}`);
     }
     
@@ -67,7 +64,6 @@ export async function getAllLeads({
       total: count || 0
     };
   } catch (error) {
-    logger.error('Error in getAllLeads service:', { error });
     throw error;
   }
 }
@@ -88,13 +84,11 @@ export async function getLeadById(id: string): Promise<LeadInfo> {
         throw new Error('Lead not found');
       }
       
-      logger.error('Error fetching lead from database:', { error, id });
       throw new Error(`Failed to fetch lead: ${error.message}`);
     }
     
     return data as LeadInfo;
   } catch (error) {
-    logger.error('Error in getLeadById service:', { error, id });
     throw error;
   }
 }
@@ -116,13 +110,11 @@ export async function updateLead(id: string, updates: Partial<LeadInfo>): Promis
       .single();
     
     if (error) {
-      logger.error('Error updating lead in database:', { error, id, updates });
       throw new Error(`Failed to update lead: ${error.message}`);
     }
     
     return data as LeadInfo;
   } catch (error) {
-    logger.error('Error in updateLead service:', { error, id, updates });
     throw error;
   }
 }
@@ -143,7 +135,6 @@ export async function getLeadStats(): Promise<{
       .select('category');
     
     if (error) {
-      logger.error('Error fetching lead stats from database:', { error });
       throw new Error(`Failed to fetch lead statistics: ${error.message}`);
     }
     
@@ -158,10 +149,9 @@ export async function getLeadStats(): Promise<{
     
     return stats;
   } catch (error) {
-    logger.error('Error in getLeadStats service:', { error });
     throw error;
   }
-} 
+}
 
 // Create a new lead in the database
 export async function createLead(leadData: Omit<LeadInfo, 'id' | 'created_at' | 'status'>): Promise<LeadInfo> {
@@ -179,7 +169,7 @@ export async function createLead(leadData: Omit<LeadInfo, 'id' | 'created_at' | 
     .single();
 
   if (error) {
-    logger.error('Error creating lead:', { 
+    console.error('=== LEADS ERROR: Failed to create lead ===', { 
       error,
       formattedPhone,
       leadData: JSON.stringify(leadData)
@@ -187,7 +177,7 @@ export async function createLead(leadData: Omit<LeadInfo, 'id' | 'created_at' | 
     throw new Error(`Failed to create lead: ${error.message}`);
   }
 
-  logger.info('Successfully created lead:', { 
+  console.log('=== LEADS DEBUG: Lead created successfully ===', { 
     id: data.id,
     category: data.category,
     subcategory: data.subcategory

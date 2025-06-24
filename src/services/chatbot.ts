@@ -1,5 +1,4 @@
 import { sendWhatsAppMessage } from '../config/gupshup';
-import logger from '../config/logger';
 import { createConversationState, getConversationState, updateConversationState } from '../config/supabase';
 import { ConversationState, FormStep, StepMessage } from '../types/chat';
 import { CategoryType, SubcategoryType } from '../types/database';
@@ -180,7 +179,6 @@ function formatErrorMessage(field: FormStep, error: string): string {
 export async function processMessage(phoneNumber: string, message: string): Promise<void> {
   try {
     console.log('=== CHATBOT DEBUG: Starting message processing ===', { phoneNumber, message });
-    logger.info('Starting message processing:', { phoneNumber, message });
     
     // Check if we have an existing conversation or need to create one
     let state = await getConversationState(phoneNumber);
@@ -189,7 +187,7 @@ export async function processMessage(phoneNumber: string, message: string): Prom
       state = await createConversationState(phoneNumber);
       
       // Send the welcome message with category options for new conversations
-      logger.info('New conversation started, sending welcome message');
+      console.log('=== CHATBOT DEBUG: New conversation started ===');
       await sendWhatsAppMessage(phoneNumber, STEP_MESSAGES.start);
       
       // Set the state to start so the user's first message will be processed as category selection
@@ -202,18 +200,12 @@ export async function processMessage(phoneNumber: string, message: string): Prom
       
       return;
     }
-    
-    logger.info('Retrieved conversation state:', { 
-      phoneNumber,
-      currentStep: state.current_step
-    });
 
     const userInput = message.trim();
 
     // Check for navigation commands first
     const navigationResult = await handleNavigationCommand(userInput, state, phoneNumber);
     if (navigationResult.handled) {
-      logger.info('Handled navigation command:', { command: userInput });
       await sendWhatsAppMessage(phoneNumber, STEP_MESSAGES[state.current_step]);
       return;
     }
@@ -229,25 +221,18 @@ export async function processMessage(phoneNumber: string, message: string): Prom
           const category = CATEGORIES[userInput];
           formData.category = category;
           
-          logger.info('Category selected:', { userInput, category, phoneNumber });
-          
           // Determine next step based on category
           if (category === 'Loans') {
             nextStep = 'loan_subcategory';
-            logger.info('Loans selected, next step: loan_subcategory');
           } else if (category === 'Insurance') {
             nextStep = 'insurance_subcategory';
-            console.log('=== CHATBOT DEBUG: Insurance selected, next step: insurance_subcategory ===');
-            logger.info('Insurance selected, next step: insurance_subcategory');
           } else if (category === 'Mutual Funds') {
             // For mutual funds, set the subcategory directly and skip to name step
             formData.subcategory = 'General Inquiry';
             nextStep = 'full_name';
-            logger.info('Mutual Funds selected, subcategory set to General Inquiry, next step: full_name', { formData });
           }
         } else {
           responseMessage = formatErrorMessage('start', 'Please select a valid option (1-3).');
-          logger.warn('Invalid start option selected:', { userInput, phoneNumber });
         }
         break;
         
@@ -323,13 +308,12 @@ export async function processMessage(phoneNumber: string, message: string): Prom
         // Mark conversation as complete
         formData.status = 'pending';
         
-        logger.info('Created lead:', {
-          full_name: formData.full_name,
+        console.log('=== CHATBOT DEBUG: Lead created successfully ===', {
           category: formData.category,
           subcategory: formData.subcategory
         });
       } catch (error) {
-        logger.error('Error creating lead:', { error, formData });
+        console.error('=== CHATBOT ERROR: Failed to create lead ===', { error, formData });
         responseMessage = 'Sorry, we encountered an error submitting your inquiry. Please try again.';
         nextStep = state.current_step; // Stay on current step
       }
@@ -337,12 +321,6 @@ export async function processMessage(phoneNumber: string, message: string): Prom
 
     // Update conversation state
     if (nextStep !== state.current_step || Object.keys(formData).length !== Object.keys(state.form_data).length) {
-      logger.info('Updating conversation state:', { 
-        phoneNumber, 
-        oldStep: state.current_step, 
-        newStep: nextStep, 
-        formData 
-      });
       await updateConversationState({
         phone_number: phoneNumber,
         current_step: nextStep,
@@ -359,14 +337,10 @@ export async function processMessage(phoneNumber: string, message: string): Prom
         const subcategoryName = formData.subcategory as SubcategoryType;
         const userName = formData.full_name?.split(' ')[0] || 'there'; // Get first name or default
         
-        // Format subcategory for URL
-        const formattedSubcategory = String(subcategoryName).toLowerCase().replace(/\s+/g, '-');
-        
         // Generate category-specific messages and links
         let productInfo = '';
         
         if (categoryName === 'Loans') {
-          
           // Add loan-specific information
           if (subcategoryName === 'Personal Loan') {
             productInfo = 'Personal loans with competitive interest rates starting at 10.5% p.a.';
@@ -387,27 +361,15 @@ export async function processMessage(phoneNumber: string, message: string): Prom
         responseMessage = `🎉 Thank you, ${userName}!\n\nYour interest in ${subcategoryName} has been recorded. ${productInfo}\n\nA representative will contact you shortly at ${formData.contact_number}.\n\nType START if you'd like to inquire about another product.`;
       } else {
         responseMessage = STEP_MESSAGES[nextStep];
-        logger.info('Setting response message from STEP_MESSAGES:', { 
-          nextStep, 
-          messageLength: responseMessage.length,
-          phoneNumber 
-        });
       }
     }
 
     // Send the message using simple text for all steps
     if (responseMessage) {
-      logger.info('Sending message:', { 
-        phoneNumber, 
-        messageLength: responseMessage.length,
-        messagePreview: responseMessage.substring(0, 100) + '...'
-      });
       await sendWhatsAppMessage(phoneNumber, responseMessage);
-    } else {
-      logger.warn('No response message to send:', { phoneNumber, nextStep, formData });
     }
   } catch (error) {
-    logger.error('Error processing message:', { 
+    console.error('=== CHATBOT ERROR: Message processing failed ===', { 
       error: error instanceof Error ? error.message : 'Unknown error', 
       phoneNumber, 
       message 

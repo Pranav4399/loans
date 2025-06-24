@@ -1,5 +1,4 @@
 import { Router } from 'express';
-import logger from '../config/logger';
 import { GupshupWebhookBody, processWebhook } from '../services/webhook';
 
 const router = Router();
@@ -9,7 +8,6 @@ const router = Router();
  * Handle webhook validation from Gupshup
  */
 router.get('/', (req, res) => {
-  logger.info('Gupshup webhook validation request received');
   res.status(200).json({ 
     status: 'ok',
     message: 'Webhook endpoint is active' 
@@ -22,18 +20,8 @@ router.get('/', (req, res) => {
  */
 router.post('/', async (req, res) => {
   try {
-    // Log the incoming webhook request with full details
-    logger.info('Received Gupshup webhook request', { 
-      userAgent: req.get('User-Agent'),
-      contentType: req.get('Content-Type'),
-      headers: req.headers,
-      bodyKeys: Object.keys(req.body || {}),
-      body: JSON.stringify(req.body, null, 2)
-    });
-    
     // Validate that this is a message event from Gupshup
     if (req.body.type !== 'message') {
-      logger.info('Ignoring non-message webhook event', { type: req.body.type });
       return res.status(200).json({ status: 'ignored' });
     }
 
@@ -44,7 +32,6 @@ router.post('/', async (req, res) => {
     if (messageText.toLowerCase().includes('optin') || 
         messageText.toLowerCase().includes('proxy') ||
         messageText.toLowerCase().startsWith('system:')) {
-      logger.info('Ignoring system message', { messageText });
       return res.status(200).json({ status: 'system_message_ignored' });
     }
     
@@ -58,6 +45,11 @@ router.post('/', async (req, res) => {
     res.status(200).json({ status: 'success' });
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    
+    console.error('=== WEBHOOK ERROR: Request processing failed ===', { 
+      error: errorMessage,
+      body: req.body
+    });
     
     // Return appropriate status code based on error
     if (errorMessage === 'Invalid webhook body') {

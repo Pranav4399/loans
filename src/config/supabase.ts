@@ -1,7 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { formatPhoneNumber } from '../services/webhook';
 import { ConversationState } from '../types/chat';
-import logger from './logger';
 
 if (!process.env.SUPABASE_URL || !process.env.SUPABASE_ANON_KEY || !process.env.SUPABASE_SERVICE_KEY) {
   throw new Error('Missing Supabase credentials in environment variables');
@@ -13,17 +12,17 @@ export const supabase = createClient(
   process.env.SUPABASE_ANON_KEY
 );
 
-// Initialize Supabase admin client with service role key (full access)
+// Initialize Supabase admin client with service role key (full permissions)
 export const supabaseAdmin = createClient(
-      process.env.SUPABASE_URL,
-      process.env.SUPABASE_SERVICE_KEY,
-      {
-        auth: {
-          autoRefreshToken: false,
-          persistSession: false
-        }
-      }
-    )
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_SERVICE_KEY,
+  {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false
+    }
+  }
+);
 
 // Database table names
 export const LEADS_TABLE = 'leads';
@@ -43,7 +42,6 @@ export async function getConversationState(phoneNumber: string): Promise<Convers
     .single();
 
   if (error && error.code !== 'PGRST116') {
-    logger.error('Error getting conversation state:', { error, phoneNumber });
     throw new Error(`Failed to get conversation state: ${error.message}`);
   }
 
@@ -71,11 +69,9 @@ export async function createConversationState(phoneNumber: string): Promise<Conv
     .single();
 
   if (error) {
-    logger.error('Error creating conversation state:', { error, phoneNumber });
     throw new Error(`Failed to create conversation state: ${error.message}`);
   }
   
-  logger.info('Created new conversation state:', { id: data.id, phoneNumber });
   return data;
 }
 
@@ -120,14 +116,8 @@ export async function updateConversationState(updates: Partial<ConversationState
     .single();
 
   if (error) {
-    logger.error('Error updating conversation state:', { error, updates });
     throw new Error(`Failed to update conversation state: ${error.message}`);
   }
-  
-  logger.info('Updated conversation state:', { 
-    id: data.id, 
-    current_step: data.current_step
-  });
   
   return data;
 } 

@@ -1,5 +1,4 @@
 import express from 'express';
-import logger from '../config/logger';
 import { getAllLeads, getLeadById, getLeadStats, updateLead } from '../services/leads';
 
 const router = express.Router();
@@ -16,11 +15,6 @@ router.get('/', async (req, res) => {
     const category = req.query.category as string;
     const search = req.query.search as string;
     
-    // Log the search query for debugging
-    if (search) {
-      logger.info('Searching leads with term:', { search });
-    }
-    
     // Get leads from service with search parameter
     const result = await getAllLeads({ page, limit, status, category, search });
     
@@ -36,7 +30,6 @@ router.get('/', async (req, res) => {
       }
     });
   } catch (error) {
-    logger.error('Error in getLeads handler:', { error });
     res.status(500).json({
       success: false,
       message: 'Failed to fetch leads',
@@ -51,16 +44,14 @@ router.get('/', async (req, res) => {
  */
 router.get('/stats', async (req, res) => {
   try {
-    // Get lead statistics from service
+    // Get stats from service
     const stats = await getLeadStats();
     
-    // Return formatted response
     res.status(200).json({
       success: true,
-      ...stats
+      data: stats
     });
   } catch (error) {
-    logger.error('Error in getLeadStats handler:', { error });
     res.status(500).json({
       success: false,
       message: 'Failed to fetch lead statistics',
@@ -96,7 +87,6 @@ router.get('/:id', async (req, res) => {
     }
     
     // Handle other errors
-    logger.error('Error in getLead handler:', { error, id: req.params.id });
     res.status(500).json({
       success: false,
       message: 'Failed to fetch lead',
@@ -133,9 +123,6 @@ router.put('/:id', async (req, res) => {
     // Update lead in the database
     const updatedLead = await updateLead(id, { status });
     
-    // Log the status update
-    logger.info('Lead status updated:', { id, status });
-    
     res.status(200).json({
       success: true,
       data: updatedLead
@@ -152,7 +139,6 @@ router.put('/:id', async (req, res) => {
     }
     
     // Handle other errors
-    logger.error('Error in updateLead handler:', { error, id: req.params.id });
     res.status(500).json({
       success: false,
       message: 'Failed to update lead',

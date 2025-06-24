@@ -1,5 +1,4 @@
 import { validateWebhook } from '../config/gupshup';
-import logger from '../config/logger';
 import { processMessage } from '../services/chatbot';
 
 // Define the Gupshup webhook body type (flexible structure)
@@ -36,7 +35,6 @@ export function formatPhoneNumber(phoneNumber: string): string {
     cleaned = cleaned.substring(2); // Remove country code for database storage
   }
   
-  logger.info('Phone number formatting:', { original: phoneNumber, cleaned });
   return cleaned;
 }
 
@@ -44,11 +42,9 @@ export function formatPhoneNumber(phoneNumber: string): string {
  * Process a WhatsApp message from Gupshup webhook
  */
 export async function processWebhook(body: GupshupWebhookBody): Promise<void> {
-  logger.info('Processing webhook with full body:', { body });
-
   // Validate the webhook body
   if (!validateWebhook(body)) {
-    logger.error('Webhook validation failed - Invalid webhook body', { 
+    console.error('=== WEBHOOK ERROR: Invalid webhook body ===', { 
       body,
       bodyType: typeof body,
       hasRequiredFields: {
@@ -71,7 +67,7 @@ export async function processWebhook(body: GupshupWebhookBody): Promise<void> {
   const senderName = body.payload.sender.name;
 
   if (!messageBody || !from) {
-    logger.error('Missing required fields in webhook body', { 
+    console.error('=== WEBHOOK ERROR: Missing required fields ===', { 
       body,
       messageBody,
       from,
@@ -85,7 +81,7 @@ export async function processWebhook(body: GupshupWebhookBody): Promise<void> {
     throw new Error('Missing required fields');
   }
 
-  logger.info('Processing WhatsApp message from Gupshup:', { 
+  console.log('=== WEBHOOK DEBUG: Processing WhatsApp message ===', { 
     from,
     messageBody,
     senderName,
