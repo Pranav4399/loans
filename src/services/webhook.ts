@@ -1,55 +1,69 @@
+import { validateWebhook } from '../config/gupshup';
 import logger from '../config/logger';
-import { validateWebhook } from '../config/twilio';
 import { processMessage } from '../services/chatbot';
 
-// Define the complete webhook body type
-export interface TwilioWebhookBody {
-  Body: string;
-  From: string;
-  WaId: string;  // WhatsApp ID
-  ProfileName: string;
-  [key: string]: string;  // All Twilio webhook fields are strings
+// Define the Gupshup webhook body type (flexible structure)
+export interface GupshupWebhookBody {
+  type: string;
+  payload: {
+    id: string;
+    source: string;
+    type: string;
+    payload?: {
+      text: string;
+    };
+    message?: {
+      text: string;
+    };
+    sender: {
+      phone: string;
+      name: string;
+    };
+    timestamp: number;
+  };
 }
 
 /**
  * Format phone number to match database constraint
  */
 export function formatPhoneNumber(phoneNumber: string): string {
-  // Remove 'whatsapp:' prefix and any spaces
-  return phoneNumber.replace('whatsapp:', '').replace(/\s/g, '');
+  // Remove any prefixes and spaces, keep just the number
+  let cleaned = phoneNumber.replace(/\D/g, '');
+  
+  // For Indian numbers, ensure we have the right format
+  if (cleaned.startsWith('91') && cleaned.length === 12) {
+    cleaned = cleaned.substring(2); // Remove country code for database storage
+  }
+  
+  logger.info('Phone number formatting:', { original: phoneNumber, cleaned });
+  return cleaned;
 }
 
 /**
- * Process a WhatsApp message from Twilio webhook
+ * Process a WhatsApp message from Gupshup webhook
  */
-export async function processWebhook(
-  body: TwilioWebhookBody, 
-  signature: string, 
-  webhookUrl: string
-): Promise<void> {
-  // Validate the webhook signature
-  if (!validateWebhook(signature, webhookUrl, body)) {
-    logger.error('Invalid webhook signature', { 
-      signature,
-      webhookUrl
-    });
-    throw new Error('Invalid signature');
+export async function processWebhook(body: GupshupWebhookBody): Promise<void> {
+  // Validate the webhook body
+  if (!validateWebhook(body)) {
+    logger.error('Invalid webhook body', { body });
+    throw new Error('Invalid webhook body');
   }
   
-  // Extract message details
-  const messageBody = body.Body;
-  const from = formatPhoneNumber(body.From);
+  // Extract message details from Gupshup format (handle both possible structures)
+  const messageBody = body.payload.payload?.text || body.payload.message?.text || '';
+  const from = formatPhoneNumber(body.payload.sender.phone);
+  const senderName = body.payload.sender.name;
 
   if (!messageBody || !from) {
     logger.error('Missing required fields in webhook body', { body });
     throw new Error('Missing required fields');
   }
 
-  logger.info('Processing WhatsApp message:', { 
+  logger.info('Processing WhatsApp message from Gupshup:', { 
     from,
     messageBody,
-    waId: body.WaId,
-    profileName: body.ProfileName
+    senderName,
+    messageId: body.payload.id
   });
 
   // Process the message through chatbot service

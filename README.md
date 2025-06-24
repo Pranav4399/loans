@@ -1,6 +1,6 @@
 # Balan - WhatsApp Loan Application Bot
 
-A WhatsApp-based chatbot that helps users apply for loans through a conversational interface. Built with Node.js, TypeScript, and Twilio.
+A WhatsApp-based chatbot that helps users apply for loans through a conversational interface. Built with Node.js, TypeScript, and Gupshup.
 
 ## Features
 
@@ -8,14 +8,14 @@ A WhatsApp-based chatbot that helps users apply for loans through a conversation
 - Step-by-step form completion
 - Input validation
 - Progress tracking
-- WhatsApp integration via Twilio
+- WhatsApp integration via Gupshup
 - Data persistence with Supabase
 
 ## Prerequisites
 
 - Node.js (v16 or higher)
 - npm or yarn
-- Twilio account with WhatsApp capability
+- Gupshup account with WhatsApp Business API access
 - Supabase account and project
 
 ## Setup
@@ -37,7 +37,7 @@ cp src/config/env.example .env
 ```
 
 4. Configure environment variables in `.env`:
-- Set your Twilio credentials (`TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_PHONE_NUMBER`)
+- Set your Gupshup credentials (`GUPSHUP_API_KEY`, `GUPSHUP_APP_NAME`)
 - Set your Supabase credentials (`SUPABASE_URL`, `SUPABASE_ANON_KEY`)
 - Configure the webhook URL for production
 - Adjust other settings as needed
@@ -65,9 +65,8 @@ npm run dev
 | NODE_ENV | Environment (development/production) | production |
 | SUPABASE_URL | Supabase project URL | https://xxx.supabase.co |
 | SUPABASE_ANON_KEY | Supabase anonymous key | your-key |
-| TWILIO_ACCOUNT_SID | Twilio account SID | ACxxxxxxxx |
-| TWILIO_AUTH_TOKEN | Twilio auth token | your-token |
-| TWILIO_PHONE_NUMBER | Twilio WhatsApp number | +1234567890 |
+| GUPSHUP_API_KEY | Gupshup API key | your-api-key |
+| GUPSHUP_APP_NAME | Gupshup app name | your-app-name |
 | WEBHOOK_URL | Production webhook URL | https://your-domain.com/api/webhook |
 
 ## Project Structure
