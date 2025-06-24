@@ -1,4 +1,4 @@
-import { sendInteractiveButtons, sendWhatsAppMessage } from '../config/gupshup';
+import { sendWhatsAppMessage } from '../config/gupshup';
 import logger from '../config/logger';
 import { createConversationState, getConversationState, updateConversationState } from '../config/supabase';
 import { ConversationState, FormStep, StepMessage } from '../types/chat';
@@ -36,11 +36,11 @@ export const MUTUAL_FUND_SUBCATEGORIES: Record<string, SubcategoryType> = {
 
 // Questions for each step
 export const STEP_MESSAGES: Record<FormStep, StepMessage> = {
-  start: '👋 *Welcome to Andromeda*\n\n• 25,000+ financial advisors nationwide\n• 125+ lending partners for best offers\n• Present in 100+ cities across India\n• Rs. 10,000+ CR loans disbursed annually\n• Trusted by 3+ million customers\n• 5000 branches pan india\n\n*Our Products:*\n• 🏦 Loans: Personal, Home, Business & more\n• 🛡️ Insurance: Health, Life, Motor & more\n• 📈 Mutual Funds: Diverse investment options\n\n💰 What financial product are you interested in?',
+  start: '👋 *Welcome to Andromeda*\n\n• 25,000+ financial advisors nationwide\n• 125+ lending partners for best offers\n• Present in 100+ cities across India\n• Rs. 10,000+ CR loans disbursed annually\n• Trusted by 3+ million customers\n• 5000 branches pan india\n\n*Our Products:*\n• 🏦 Loans: Personal, Home, Business & more\n• 🛡️ Insurance: Health, Life, Motor & more\n• 📈 Mutual Funds: Diverse investment options\n\n💰 What financial product are you interested in?\n\n1️⃣ Loans\n2️⃣ Insurance\n3️⃣ Mutual Funds\n\nPlease reply with the number (1, 2, or 3)',
   
-  // These are placeholder messages - we actually send interactive buttons for these steps
-  loan_subcategory: 'Loading loan options...',
-  insurance_subcategory: 'Loading insurance options...',
+  loan_subcategory: 'What type of loan are you interested in?\n\n1️⃣ Personal Loan\n2️⃣ Business Loan\n3️⃣ Home Loan\n4️⃣ Loan Against Property\n5️⃣ Car Loan\n6️⃣ Working Capital\n\nPlease reply with the number (1-6)',
+  
+  insurance_subcategory: 'What type of insurance are you interested in?\n\n1️⃣ Health Insurance\n2️⃣ Motor Vehicle Insurance\n3️⃣ Life Insurance\n4️⃣ Property Insurance\n\nPlease reply with the number (1-4)',
   
   full_name: '📝 What is your name?\n\nPlease enter your name as it appears on official documents.\nExample: "Balaji" or "Balaji S"',
   
@@ -189,18 +189,8 @@ export async function processMessage(phoneNumber: string, message: string): Prom
       state = await createConversationState(phoneNumber);
       
       // Send the welcome message with category options for new conversations
-      logger.info('New conversation started, sending welcome message with interactive buttons');
-      await sendInteractiveButtons(
-        phoneNumber,
-        STEP_MESSAGES.start,
-        [
-          { id: '1', title: 'Loans' },
-          { id: '2', title: 'Insurance' },
-          { id: '3', title: 'Mutual Funds' }
-        ],
-        undefined, // No header
-        'Select an option to get started'
-      );
+      logger.info('New conversation started, sending welcome message');
+      await sendWhatsAppMessage(phoneNumber, STEP_MESSAGES.start);
       
       // Set the state to start so the user's first message will be processed as category selection
       await updateConversationState({
@@ -308,17 +298,7 @@ export async function processMessage(phoneNumber: string, message: string): Prom
           });
           
           // Send the start message directly
-          await sendInteractiveButtons(
-            phoneNumber,
-            STEP_MESSAGES.start,
-            [
-              { id: '1', title: 'Loans' },
-              { id: '2', title: 'Insurance' },
-              { id: '3', title: 'Mutual Funds' }
-            ],
-            undefined, // No header
-            'Select an option to get started'
-          );
+          await sendWhatsAppMessage(phoneNumber, STEP_MESSAGES.start);
           return;
         } else {
           responseMessage = 'Your inquiry has been submitted. Type START to begin a new inquiry.';
@@ -415,49 +395,14 @@ export async function processMessage(phoneNumber: string, message: string): Prom
       }
     }
 
-    // Send the message - check for subcategories and send interactive buttons instead
+    // Send the message using simple text for all steps
     if (responseMessage) {
-      if (nextStep === 'loan_subcategory') {
-        // Send interactive buttons for loan subcategories instead of text
-        await sendInteractiveButtons(
-          phoneNumber,
-          'What type of loan are you interested in?',
-          [
-            { id: '1', title: 'Personal Loan' },
-            { id: '2', title: 'Business Loan' },
-            { id: '3', title: 'Home Loan' },
-            { id: '4', title: 'Loan Against Property' },
-            { id: '5', title: 'Car Loan' },
-            { id: '6', title: 'Working Capital' }
-          ],
-          undefined,
-          'Select the loan type that fits your needs'
-        );
-      } else if (nextStep === 'insurance_subcategory') {
-        // Send interactive buttons for insurance subcategories instead of text
-        console.log('=== CHATBOT DEBUG: Sending insurance buttons ===');
-        await sendInteractiveButtons(
-          phoneNumber,
-          'What type of insurance are you interested in?',
-          [
-            { id: '1', title: 'Health Insurance' },
-            { id: '2', title: 'Motor Vehicle Insurance' },
-            { id: '3', title: 'Life Insurance' },
-            { id: '4', title: 'Property Insurance' }
-          ],
-          undefined,
-          'Select the insurance type that suits you'
-        );
-        console.log('=== CHATBOT DEBUG: Insurance buttons sent successfully ===');
-      } else {
-        // Send regular text message for all other steps
-        logger.info('Sending message:', { 
-          phoneNumber, 
-          messageLength: responseMessage.length,
-          messagePreview: responseMessage.substring(0, 100) + '...'
-        });
-        await sendWhatsAppMessage(phoneNumber, responseMessage);
-      }
+      logger.info('Sending message:', { 
+        phoneNumber, 
+        messageLength: responseMessage.length,
+        messagePreview: responseMessage.substring(0, 100) + '...'
+      });
+      await sendWhatsAppMessage(phoneNumber, responseMessage);
     } else {
       logger.warn('No response message to send:', { phoneNumber, nextStep, formData });
     }
